@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: Ad slots Manager
+  description: |-
+    API allows users to open slots for one or more days, get the number of slots in a date range, update already open dates and slots, and reserve specific slots for specific dates or a range of dates by a user. The system includes several microservices, including an accounting service, and requires the use of a database to store slot and transaction information. The database schema includes tables for slots, dates, users, and transactions. Appropriate HTTP response codes and error messages must be sent back to the user when the API fails or experiences an error. The overall goal of the system is to provide an efficient and reliable way for users to manage and reserve available slots.
+  termsOfService: ""
+  contact:
+    email: "test@email.com"
+  license:
+    name: Apache 2.0
+    url: ""
+  version: 1.0.0
+externalDocs:
+  description: Find more
+  url: ""
+servers:
+  - url: http://localhost
+tags:
+  - name: adslots
+    description: Slot Management API with Atomic Transactions 
+    externalDocs:
+      description: Find out more
+      url: ""
+paths:
+  /adslots:
+    post:
+      tags:
+        - adslots
+      summary: Add new slots
+      description: Add multiple slots or range with position available
+      operationId: addSlots
+      requestBody:
+        description: Create new slots
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Adslots'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'          
+        '400':
+          description: Required parameters not provided
+        '404':
+          description: Not found
+        '405':
+          description: Validation exception
+    get:
+      tags:
+        - adslots
+      summary: Get available slots
+      description: Get all open slots for a give date and position
+      operationId: getAdSlots
+      parameters:
+        - name: start
+          in: query
+          description: Start date for fetching adslots
+          required: true
+          explode: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          description: End date for fetching adslots in a range
+          required: false
+          explode: true
+          schema:
+            type: string
+            format: date
+        - name: position
+          in: query
+          description: Position of slots for give date
+          required: false
+          explode: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '400':
+          description: Required parameters not provided
+        '404':
+          description: Not found
+        '405':
+          description: Validation exception
+    patch:
+      tags:
+        - adslots
+      summary: Update an existing slot
+      description: Update an existing slot by id
+      operationId: updateSlot
+      parameters:
+        - name: id
+          in: query
+          description: Slot Id to be updated
+          required: true
+          explode: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Update an existent slot
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Slot'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'          
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: not found
+        '405':
+          description: Validation exception
+  /adslots/reserve:
+    post:
+      tags:
+        - adslots
+      summary: Reserve slot
+      description: Reserve a slot by Id and position
+      operationId: reserveSlot
+      parameters:
+        - name: id
+          in: query
+          description: User id for reserving the slots
+          required: true
+          explode: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Reserve slots in range or individual 
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date
+                end:
+                  type: string
+                  format: date
+                position:
+                  type: integer
+                  format: int32
+        required: true
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiResponse'          
+        '400':
+          description: Invalid status value
+components:
+  schemas:
+    Adslots:
+      required:
+        - type
+        - slots
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [range, detailed]
+          default: detailed
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+    Slot:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+        position:
+          type: integer
+          format: int32
+        cost:
+          type: integer
+          format: float
+        status:
+          type: string
+          enum: [open, closed, hold]
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+          enum: [reserve, create, update]
+          default: create
+        message:
+          type: string
+        
