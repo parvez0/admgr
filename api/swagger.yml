@@ -17,7 +17,7 @@ servers:
   - url: http://localhost
 tags:
   - name: adslots
-    description: Slot Management API with Atomic Transactions 
+    description: Slot Management API with Atomic Transactions
     externalDocs:
       description: Find out more
       url: ""
@@ -34,21 +34,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Adslots'
+              $ref: '#/components/schemas/CreateSlot'
         required: true
       responses:
         '200':
           description: Successful operation
+        '400':
+          description: Required parameters not provided
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'          
-        '400':
-          description: Required parameters not provided
-        '404':
-          description: Not found
-        '405':
-          description: Validation exception
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to create given slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
     get:
       tags:
         - adslots
@@ -56,7 +58,7 @@ paths:
       description: Get all open slots for a give date and position
       operationId: getAdSlots
       parameters:
-        - name: start
+        - name: start_date
           in: query
           description: Start date for fetching adslots
           required: true
@@ -64,7 +66,7 @@ paths:
           schema:
             type: string
             format: date
-        - name: end
+        - name: end_date
           in: query
           description: End date for fetching adslots in a range
           required: false
@@ -91,10 +93,10 @@ paths:
                   $ref: '#/components/schemas/Slot'
         '400':
           description: Required parameters not provided
-        '404':
-          description: Not found
-        '405':
-          description: Validation exception
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
     patch:
       tags:
         - adslots
@@ -120,18 +122,20 @@ paths:
       responses:
         '200':
           description: Successful operation
+        '400':
+          description: Required parameters not provided
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'          
-        '400':
-          description: Invalid ID supplied
-        '404':
-          description: not found
-        '405':
-          description: Validation exception
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to update given slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
   /adslots/reserve:
-    post:
+    patch:
       tags:
         - adslots
       summary: Reserve slot
@@ -147,21 +151,11 @@ paths:
             type: string
             format: uuid
       requestBody:
-        description: Reserve slots in range or individual 
+        description: Reserve slots in range or individual
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                start:
-                  type: string
-                  format: date
-                end:
-                  type: string
-                  format: date
-                position:
-                  type: integer
-                  format: int32
+              $ref: '#/components/schemas/BookingSlot'
         required: true
       responses:
         '200':
@@ -171,32 +165,40 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ApiResponse'          
+                  $ref: '#/components/schemas/ApiResponse'
         '400':
           description: Invalid status value
 components:
   schemas:
-    Adslots:
-      required:
-        - type
-        - slots
-      type: object
-      properties:
-        type:
-          type: string
-          enum: [range, detailed]
-          default: detailed
-        slots:
-          type: array
-          items:
-            $ref: '#/components/schemas/Slot'
+    CreateSlot:
+      type: array
+      items:
+        properties:
+          start_date:
+            type: string
+            format: date
+          end_date:
+            type: string
+            format: date
+          position:
+            type: array
+            items:
+              type: integer
+            uniqueItems: true
+            default: [1,2,4]
+          cost:
+            type: integer
+            format: float
+          status:
+            type: string
+            default: open
     Slot:
       type: object
       properties:
-        start:
+        start_date:
           type: string
           format: date
-        end:
+        end_date:
           type: string
           format: date
         position:
@@ -208,6 +210,16 @@ components:
         status:
           type: string
           enum: [open, closed, hold]
+    BookingSlot:
+      type: array
+      items:
+        properties:
+          date:
+            type: string
+            format: date
+          position:
+            type: integer
+            format: int
     ApiResponse:
       type: object
       properties:
@@ -219,5 +231,12 @@ components:
           enum: [reserve, create, update]
           default: create
         message:
-          type: string
+          type: array
+          items:
+            properties:
+              error:
+                type: string
+              description:
+                type: string
+
         
