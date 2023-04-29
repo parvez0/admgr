@@ -141,15 +141,6 @@ paths:
       summary: Reserve slot
       description: Reserve a slot by Id and position
       operationId: reserveSlot
-      parameters:
-        - name: id
-          in: query
-          description: User id for reserving the slots
-          required: true
-          explode: true
-          schema:
-            type: string
-            format: uuid
       requestBody:
         description: Reserve slots in range or individual
         content:
@@ -221,20 +212,7 @@ components:
     ApiResponse:
       type: object
       properties:
-        code:
-          type: integer
-          format: int32
-        type:
+        error:
           type: string
-          enum: [reserve, create, update]
-          default: create
-        message:
-          type: array
-          items:
-            properties:
-              error:
-                type: string
-              description:
-                type: string
 
         
