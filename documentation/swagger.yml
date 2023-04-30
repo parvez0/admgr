@@ -45,8 +45,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: Forbidden or not authorized to create given slot
+        '409':
+          description: Conflict with another slot
           content:
             application/json:
               schema:
@@ -117,7 +117,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Slot'
+              $ref: '#/components/schemas/PatchSlot'
         required: true
       responses:
         '200':
@@ -157,6 +157,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to reserve slot either it's already booked, closed or on hold
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
 components:
   schemas:
     CreateSlot:
@@ -184,18 +190,43 @@ components:
     Slot:
       type: object
       properties:
-        start_date:
+        date:
           type: string
           format: date
-        end_date:
+        status:
+          type: string
+          enum: [open, closed, hold]
+        slots:
+          type: array
+          items:
+            properties:
+              position:
+                type: integer
+                format: int
+              cost:
+                type: integer
+                format: float
+                example: 10.45
+              status:
+                type: string
+                enum: [open, closed, hold]
+    PatchSlot:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
           type: string
           format: date
-        position:
-          type: integer
-          format: int32
         cost:
           type: integer
           format: float
+        position:
+          type: integer
+          format: int
         status:
           type: string
           enum: [open, closed, hold]
@@ -215,4 +246,3 @@ components:
         error:
           type: string
 
-        
