@@ -84,6 +84,20 @@ paths:
           schema:
             type: integer
             format: int32
+        - name: uid
+          in: query
+          description: UserId of the user who booked the slot
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by status of the slots
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, booked, hold]
       responses:
         '200':
           description: Successful operation
