@@ -22,11 +22,11 @@ tags:
       description: Find out more
       url: ""
 paths:
-  /transaction:
+  /debit:
     post:
       tags:
         - transaction
-      summary: Create new transaction
+      summary: Create new debit transaction
       operationId: createTransaction
       requestBody:
         description: Create new transaction for the given cost
@@ -56,18 +56,24 @@ components:
     CreateTransaction:
       type: object
       properties:
-        user_id:
+        source:
+          type: string
+          example: admgr
+        uid:
           type: string
           format: uuid
-        cost:
+        amount:
           type: integer
           format: float
-          example: 10.34
-        transaction_id:
+          example: 14.56
+        txnid:
           type: string
           format: uuid
-        slots:
-          $ref: '#/components/schemas/Slot'
+        metadata:
+          type: object
+          properties:
+            slots:
+              $ref: '#/components/schemas/Slot'
     Slot:
       type: array
       items:
@@ -90,7 +96,7 @@ components:
           cost: 12.3
         - date: 05-05-2023
           position: 3
-          cost: 0
+          cost: 1
     ApiResponse:
       type: object
       properties:

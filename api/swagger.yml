@@ -257,10 +257,8 @@ components:
             type: string
             format: date
           position:
-            type: array
-            items:
-              type: integer
-            example: [1,5]
+            type: integer
+            example: 1
     ApiResponse:
       type: object
       properties:
