@@ -1,0 +1,104 @@
+openapi: 3.0.3
+info:
+  title: Accounting Manager
+  description: |-
+    Accounting service api request assumption
+  termsOfService: ""
+  contact:
+    email: "test@email.com"
+  license:
+    name: Apache 2.0
+    url: ""
+  version: 1.0.0
+externalDocs:
+  description: Find more
+  url: ""
+servers:
+  - url: http://localhost/accounting
+tags:
+  - name: accounting
+    description: Accounting API for money transactions and financial services
+    externalDocs:
+      description: Find out more
+      url: ""
+paths:
+  /debit:
+    post:
+      tags:
+        - transaction
+      summary: Create new debit transaction
+      operationId: createTransaction
+      requestBody:
+        description: Create new transaction for the given cost
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransaction'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          description: Conflict with another slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+components:
+  schemas:
+    CreateTransaction:
+      type: object
+      properties:
+        source:
+          type: string
+          example: admgr
+        uid:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+          format: float
+          example: 14.56
+        txnid:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+          properties:
+            slots:
+              $ref: '#/components/schemas/Slot'
+    Slot:
+      type: array
+      items:
+        properties:
+          date:
+            type: string
+            format: date
+          postion:
+            type: integer
+            format: int
+          cost:
+            type: integer
+            format: float
+      example:
+        - date: 05-05-2023
+          position: 1
+          cost: 1.23
+        - date: 05-05-2023
+          position: 2
+          cost: 12.3
+        - date: 05-05-2023
+          position: 3
+          cost: 1
+    ApiResponse:
+      type: object
+      properties:
+        error:
+          type: string

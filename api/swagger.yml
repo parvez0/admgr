@@ -1,0 +1,271 @@
+openapi: 3.0.3
+info:
+  title: Ad slots Manager
+  description: |-
+    API allows users to open slots for one or more days, get the number of slots in a date range, update already open dates and slots, and reserve specific slots for specific dates or a range of dates by a user. The system includes several microservices, including an accounting service, and requires the use of a database to store slot and transaction information. The database schema includes tables for slots, dates, users, and transactions. Appropriate HTTP response codes and error messages must be sent back to the user when the API fails or experiences an error. The overall goal of the system is to provide an efficient and reliable way for users to manage and reserve available slots.
+  termsOfService: ""
+  contact:
+    email: "test@email.com"
+  license:
+    name: Apache 2.0
+    url: ""
+  version: 1.0.0
+externalDocs:
+  description: Find more
+  url: ""
+servers:
+  - url: http://localhost
+tags:
+  - name: adslots
+    description: Slot Management API with Atomic Transactions
+    externalDocs:
+      description: Find out more
+      url: ""
+paths:
+  /adslots:
+    post:
+      tags:
+        - adslots
+      summary: Add new slots
+      description: Add multiple slots or range with position available
+      operationId: addSlots
+      requestBody:
+        description: Create new slots
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSlot'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '409':
+          description: Conflict with another slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      tags:
+        - adslots
+      summary: Get available slots
+      description: Get all open slots for a give date and position
+      operationId: getAdSlots
+      parameters:
+        - name: start_date
+          in: query
+          description: Start date for fetching adslots
+          required: true
+          explode: true
+          example: 2023-05-02
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: End date for fetching adslots in a range
+          required: true
+          explode: true
+          example: 2023-05-02
+          schema:
+            type: string
+            format: date
+        - name: position
+          in: query
+          description: Position of slots for give date
+          required: false
+          explode: true
+          schema:
+            type: integer
+            format: int32
+        - name: uid
+          in: query
+          description: UserId of the user who booked the slot
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by status of the slots
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, booked, hold]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Slot'
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    patch:
+      tags:
+        - adslots
+      summary: Update an existing slot
+      description: Update an existing slot by id
+      operationId: updateSlot
+      requestBody:
+        description: Update an existent slot
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSlot'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to update given slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /adslots/reserve:
+    patch:
+      tags:
+        - adslots
+      summary: Reserve slot
+      description: Reserve a slot by Id and position
+      operationId: reserveSlot
+      parameters:
+        - name: uid
+          in: query
+          description: Id of the user who is making the reservation
+          required: true
+          explode: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        description: Reserve slots in range or individual
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingSlot'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to reserve slot either it's already booked, closed or on hold
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+components:
+  schemas:
+    CreateSlot:
+      type: array
+      items:
+        properties:
+          start_date:
+            type: string
+            format: date
+          end_date:
+            type: string
+            format: date
+          position:
+            type: array
+            items:
+              type: integer
+            uniqueItems: true
+            default: [1,4]
+            description: Defines start and end posstion 1..N
+          cost:
+            type: integer
+            format: float
+          status:
+            type: string
+            enum: [open, closed, hold, booked]
+            default: open
+    Slot:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [open, closed, hold, booked]
+        slots:
+          type: array
+          items:
+            properties:
+              position:
+                type: integer
+                format: int
+              cost:
+                type: integer
+                format: float
+                example: 10.45
+              status:
+                type: string
+                enum: [open, closed, hold]
+              booked_by:
+                type: string
+                format: uuid
+              booked_date:
+                type: string
+                format: date
+      example:
+        date: '2023-05-04'
+        status: open
+        slots:
+          - position: 1
+            cost: 10.45
+            status: open
+          - position: 2
+            cost: 8.99
+            status: booked
+            booked_by: 01234567-89ab-cdef-0123-456789abcdef
+            booked_date: '2023-05-05'
+          - position: 3
+            cost: 10.45
+            status: hold
+    BookingSlot:
+      type: array
+      items:
+        properties:
+          date:
+            type: string
+            format: date
+          position:
+            type: integer
+            example: 1
+    ApiResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+        # For GET: so for all the dates which I doesn't have a open slot for the queried range in the db, it should returned closed
+        # For patch: create date and position as primary key, we can use the same request body as post
+        # Position slots will start from 1 to N, reject if slots from 1 are not open and position is greater than 1
+
