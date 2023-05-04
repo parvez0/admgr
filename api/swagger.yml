@@ -149,7 +149,7 @@ paths:
       description: Reserve a slot by Id and position
       operationId: reserveSlot
       parameters:
-        - name: user_id
+        - name: uid
           in: query
           description: Id of the user who is making the reservation
           required: true
