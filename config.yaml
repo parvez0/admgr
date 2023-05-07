@@ -7,7 +7,7 @@ port: 10001
 logger:
   level: debug
   full_timestamp: true
-  output_file_path: "/var/log/admgr/admgr.log"
+  output_file_path: "./admgr.log"
 
 # redis connection information
 redis:
@@ -20,6 +20,6 @@ redis:
 db:
   host: localhost
   port: 3306
-  name: "adsvc"
-  username: "adsvc"
-  password: "abc123"
+  name: "admgr"
+  username: "root"
+  password: "password"

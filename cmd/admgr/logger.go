@@ -27,7 +27,7 @@ type Logger interface {
 var logger *logrus.Logger
 var fd *os.File
 
-// NewLogger returns a logrus custom_logger object with prefilled options
+// InitializeLogger returns a logrus custom_logger object with prefilled options
 func InitializeLogger(config *Config) Logger {
 	if logger != nil {
 		return logger

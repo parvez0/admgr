@@ -71,7 +71,7 @@ func InitializeConfig() *Config {
 	viper.SetConfigName("config")
 
 	// set the path to look for the configurations file
-	//viper.AddConfigPath(".")
+	viper.AddConfigPath(".")
 	viper.AddConfigPath("/etc/admgr")
 
 	// enable VIPER to read Environment Variables
