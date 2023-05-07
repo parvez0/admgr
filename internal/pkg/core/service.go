@@ -13,7 +13,7 @@ import (
 // Service provides User adding operations.
 type Service interface {
 	CreateSlots(slots []*api.CreateSlotRequestBody) error
-	PatchSlots(slots *api.CreateSlotRequestBody) error
+	PatchSlots(slots []*api.CreateSlotRequestBody) (int, error)
 	GetSlots(filters map[string]interface{}) ([]*api.GetSlotsResponse, error)
 }
 
@@ -64,13 +64,25 @@ func (s *service) CreateSlots(createReqBody []*api.CreateSlotRequestBody) error 
 	return nil
 }
 
-func (s *service) PatchSlots(req *api.CreateSlotRequestBody) error {
-	slots, err := s.fetchSlotsFromReqBody(req)
-	if err != nil {
-		return err
+func (s *service) PatchSlots(patchReqBody []*api.CreateSlotRequestBody) (int, error) {
+	var slotsToUpdate []*mysql.Slot
+	for _, req := range patchReqBody {
+		startDate := time.Time(req.StartDate)
+		endDate := time.Time(req.EndDate)
+		if startDate.After(endDate) {
+			return 0, models.NewError(
+				fmt.Sprintf("BadParameterValue: start_date[%s] should be less than or equal to end_date[%s]", startDate.Format(time.DateOnly), endDate.Format(time.DateOnly)),
+				models.DecodeFailureError,
+			)
+		}
+		slots, err := s.fetchSlotsFromReqBody(req)
+		if err != nil {
+			return 0, err
+		}
+		slotsToUpdate = append(slotsToUpdate, slots...)
 	}
-	_, err = s.r.UpdateSlots(slots)
-	return err
+	s.log.Debugf("CreateSlots:: Adding %v to Repository", slotsToUpdate)
+	return s.r.UpdateSlots(slotsToUpdate)
 }
 
 func (s *service) GetSlots(filters map[string]interface{}) ([]*api.GetSlotsResponse, error) {

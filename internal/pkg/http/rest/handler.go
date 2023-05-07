@@ -7,6 +7,7 @@ import (
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -89,7 +90,32 @@ func getSlotHandler(c *gin.Context) {
 	return
 }
 
-func updateSlotHandler(c *gin.Context) {}
+func updateSlotHandler(c *gin.Context) {
+	var requestBody []*api.CreateSlotRequestBody
+	jsonData, err := c.GetRawData()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+	err = json.Unmarshal(jsonData, &requestBody)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": DecodeFailureErrorMsg + err.Error()})
+		return
+	}
+	for i, req := range requestBody {
+		if time.Time(req.StartDate).IsZero() || time.Time(req.StartDate).IsZero() || len(req.Position) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(".[%d].start_date, .[%d].end_date or .[%d].position is missing in request body", i, i, i)})
+			return
+		}
+	}
+	affected, err := service.PatchSlots(requestBody)
+	if err != nil {
+		httpCode, erMsg := getHttpCodeAndMessage(err.(*models.Error))
+		c.AbortWithStatusJSON(httpCode, gin.H{"error": erMsg})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Total %d records updated", affected)})
+}
 
 func reserveSlotHandler(c *gin.Context) {}
 
