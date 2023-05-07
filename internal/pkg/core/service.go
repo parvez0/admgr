@@ -20,7 +20,7 @@ type Service interface {
 // Repository provides access to User repository.
 type Repository interface {
 	Create(interface{}) (int, error)
-	UpdateSlots(slot []mysql.Slot) (int, error)
+	UpdateSlots(slot []*mysql.Slot) (int, error)
 	SearchSlots(filters map[string]interface{}) ([]*mysql.Slot, error)
 }
 
@@ -40,7 +40,7 @@ func NewService(r Repository, log *logrus.Logger) Service {
 
 func (s *service) CreateSlots(createReqBody []*api.CreateSlotRequestBody) error {
 	// any validation can be done here
-	var slotsToCreate []mysql.Slot
+	var slotsToCreate []*mysql.Slot
 	for _, req := range createReqBody {
 		startDate := time.Time(req.StartDate)
 		endDate := time.Time(req.EndDate)
@@ -100,7 +100,7 @@ func (s *service) GetSlots(filters map[string]interface{}) ([]*api.GetSlotsRespo
 	var wg sync.WaitGroup
 	for date := startDate; date.Before(endDate) || date.Equal(endDate); date = date.AddDate(0, 0, 1) {
 		wg.Add(1)
-		go s.fetchSlot(filters, date, errCh, resCh, &wg)
+		go s.fetchSlot(copyMap(filters), date, errCh, resCh, &wg)
 	}
 
 	go func() {
@@ -110,6 +110,9 @@ func (s *service) GetSlots(filters map[string]interface{}) ([]*api.GetSlotsRespo
 	}()
 
 	for slot := range resCh {
+		if status, e := filters["status"]; e && status.(string) != slot.Status {
+			continue
+		}
 		allSlots = append(allSlots, slot)
 	}
 
@@ -141,9 +144,10 @@ func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errC
 				*slot.BookedBy = "others"
 			}
 		}
-		var bookedDate models.JSONDate
+		var bookedDate *models.JSONDate
 		if slot.BookedDate != nil {
-			bookedDate = models.JSONDate(*slot.BookedDate)
+			bDate := models.JSONDate(*slot.BookedDate)
+			bookedDate = &bDate
 		}
 		apiSlot := api.SlotResponse{
 			Position:   *slot.Position,
@@ -165,8 +169,8 @@ func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errC
 	resCh <- slot
 }
 
-func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody) ([]mysql.Slot, error) {
-	var slots []mysql.Slot
+func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody) ([]*mysql.Slot, error) {
+	var slots []*mysql.Slot
 	for date := time.Time(req.StartDate); date.Before(time.Time(req.EndDate)) || date.Equal(time.Time(req.EndDate)); date = date.AddDate(0, 0, 1) {
 		if req.Position[0] > 1 {
 			preSlots, err := s.r.SearchSlots(
@@ -184,7 +188,7 @@ func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody) ([]mysql
 		}
 		for pos := req.Position[0]; pos <= req.Position[1]; pos++ {
 			slotDate, slotPos := date, pos
-			slot := mysql.Slot{
+			slot := &mysql.Slot{
 				Date:     &slotDate,
 				Position: &slotPos,
 				Cost:     req.Cost,
@@ -194,4 +198,12 @@ func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody) ([]mysql
 		}
 	}
 	return slots, nil
+}
+
+func copyMap(input map[string]interface{}) map[string]interface{} {
+	output := make(map[string]interface{})
+	for k, v := range input {
+		output[k] = v
+	}
+	return output
 }

@@ -97,7 +97,7 @@ func (s *Storage) Create(records interface{}) (int, error) {
 	return int(res.RowsAffected), nil
 }
 
-func (s *Storage) UpdateSlots(slots []Slot) (int, error) {
+func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 	var dbError error
 	tx, affectedRows := s.db.Begin(), 0
 	for _, slot := range slots {

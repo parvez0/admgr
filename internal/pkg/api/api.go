@@ -34,9 +34,9 @@ type GetSlotsResponse struct {
 }
 
 type SlotResponse struct {
-	Position   int32           `json:"position"`
-	Cost       float64         `json:"cost"`
-	Status     string          `json:"status"`
-	BookedBy   *string         `json:"booked_by,omitempty"`
-	BookedDate models.JSONDate `json:"booked_date,omitempty"`
+	Position   int32            `json:"position"`
+	Cost       float64          `json:"cost"`
+	Status     string           `json:"status"`
+	BookedBy   *string          `json:"booked_by,omitempty"`
+	BookedDate *models.JSONDate `json:"booked_date,omitempty"`
 }
