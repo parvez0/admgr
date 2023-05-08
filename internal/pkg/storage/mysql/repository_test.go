@@ -42,7 +42,7 @@ func (r *RepositoryTestSuite) AfterTest(suiteName, test string) {
 func (r *RepositoryTestSuite) Test_Create() {
 	slotFactory, transFactory := SlotFactory{}, TransactionFactory{}
 	slots := slotFactory.
-		WithStatus([]string{models.SLOT_STATUS_OPEN}).
+		WithStatus([]string{models.SlotStatusOpen}).
 		WithInstances(10).
 		Build()
 	var transactions []*mysql.Transaction
@@ -85,11 +85,11 @@ func (r *RepositoryTestSuite) Test_Update() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	slotF := SlotFactory{}
 
-	slots := slotF.WithStatus([]string{models.SLOT_STATUS_OPEN}).WithInstances(5).Build()
+	slots := slotF.WithStatus([]string{models.SlotStatusOpen}).WithInstances(5).Build()
 	_, err := r.repository.Create(slots)
 	assert.Nil(r.T(), err, "Failed to create slots")
 	for i := range slots {
-		status := []string{models.SLOT_STATUS_CLOSED, models.SLOT_STATUS_BOOKED, models.SLOT_STATUS_HOLD}[rand.Intn(3)]
+		status := []string{models.SlotStatusClosed, models.SlotStatusBooked, models.SlotStatusHold}[rand.Intn(3)]
 		slots[i].Status = &status
 	}
 	affected, err := r.repository.UpdateSlots(slots)
@@ -100,7 +100,7 @@ func (r *RepositoryTestSuite) Test_Update() {
 	date := time.Now().AddDate(0, 0, -1)
 	slots[2].Date = &date
 	for i := range slots {
-		status := models.SLOT_STATUS_OPEN
+		status := models.SlotStatusOpen
 		slots[i].Status = &status
 	}
 	affected, err = r.repository.UpdateSlots(slots)
@@ -151,12 +151,12 @@ func (r *RepositoryTestSuite) Test_SearchWithPrimaryKeyAndStatus() {
 
 func (r *RepositoryTestSuite) Test_UpdateSlotsStatus() {
 	slotF := SlotFactory{}
-	slot := slotF.WithStatus([]string{models.SLOT_STATUS_OPEN}).WithInstances(1).Build()
+	slot := slotF.WithStatus([]string{models.SlotStatusOpen}).WithInstances(1).Build()
 	_, err := r.repository.Create(slot)
 	assert.Nil(r.T(), err, "Expected to create slots")
-	err = r.repository.UpdateSlotsStatus(slot, *slot[0].Status, models.SLOT_STATUS_CLOSED)
+	err = r.repository.UpdateSlotsStatus(slot, *slot[0].Status, models.SlotStatusClosed)
 	assert.Nil(r.T(), err)
-	date, position, status := *slot[0].Date, *slot[0].Position, models.SLOT_STATUS_CLOSED
+	date, position, status := *slot[0].Date, *slot[0].Position, models.SlotStatusClosed
 	firstSlot, err := r.repository.SearchSlotsByPrimaryKeyAndStatus(date, position, status)
 	assert.Nil(r.T(), err)
 	assert.NotNil(r.T(), firstSlot)

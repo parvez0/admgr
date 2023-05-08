@@ -38,10 +38,10 @@ func (s *SlotFactory) fill_default() *SlotFactory {
 	}
 	if s.Status == nil {
 		s.Status = []string{
-			models.SLOT_STATUS_OPEN,
-			models.SLOT_STATUS_BOOKED,
-			models.SLOT_STATUS_HOLD,
-			models.SLOT_STATUS_CLOSED,
+			models.SlotStatusOpen,
+			models.SlotStatusBooked,
+			models.SlotStatusHold,
+			models.SlotStatusClosed,
 		}
 	}
 	if s.DateFormat == "" {
@@ -72,7 +72,7 @@ func (s *SlotFactory) Build() []*mysql.Slot {
 		}).
 		Attr("BookedBy", func(args factory.Args) (interface{}, error) {
 			slot := args.Instance().(*mysql.Slot)
-			if *slot.Status == models.SLOT_STATUS_BOOKED {
+			if *slot.Status == models.SlotStatusBooked {
 				uid := uuid.New().String()
 				return &uid, nil
 			}
@@ -80,7 +80,7 @@ func (s *SlotFactory) Build() []*mysql.Slot {
 		}).
 		Attr("BookedDate", func(args factory.Args) (interface{}, error) {
 			slot := args.Instance().(*mysql.Slot)
-			if *slot.Status == models.SLOT_STATUS_BOOKED {
+			if *slot.Status == models.SlotStatusBooked {
 				date := slot.Date.AddDate(0, 0, 1)
 				return &date, nil
 			}

@@ -6,10 +6,10 @@ import (
 )
 
 const (
-	SLOT_STATUS_OPEN   = "open"
-	SLOT_STATUS_CLOSED = "closed"
-	SLOT_STATUS_BOOKED = "booked"
-	SLOT_STATUS_HOLD   = "hold"
+	SlotStatusOpen   = "open"
+	SlotStatusClosed = "closed"
+	SlotStatusBooked = "booked"
+	SlotStatusHold   = "hold"
 )
 
 // JSONDate Custom time object with layout formatting
@@ -31,4 +31,8 @@ func (jt *JSONDate) MarshalJSON() ([]byte, error) {
 
 func PtrString(s string) *string {
 	return &s
+}
+
+func PtrDate(d time.Time) *time.Time {
+	return &d
 }

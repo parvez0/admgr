@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"net/http"
 	"time"
@@ -35,6 +36,7 @@ func main() {
 		// Bind request body to struct
 		if err := c.BindJSON(&requestBody); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
+			fmt.Println(requestBody)
 			rand.New(rand.NewSource(time.Now().UnixNano()))
 			time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
 			return

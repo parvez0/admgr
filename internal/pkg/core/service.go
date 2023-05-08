@@ -158,13 +158,13 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 	for _, r := range reserveRequest {
 		date := time.Time(r.Date)
 		slot := &mysql.Slot{
-			Date:     &date,
+			Date:     models.PtrDate(date),
 			Position: r.Position,
-			Status:   models.PtrString(models.SLOT_STATUS_HOLD),
+			Status:   models.PtrString(models.SlotStatusHold),
 		}
 		txn := &mysql.Transaction{
 			Txnid:    txnid.String(),
-			Date:     &date,
+			Date:     models.PtrDate(date),
 			Position: r.Position,
 		}
 		slots = append(slots, slot)
@@ -172,14 +172,14 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 	}
 
 	// update slots
-	if err := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_OPEN, models.SLOT_STATUS_HOLD); err != nil {
+	if err := s.rep.UpdateSlotsStatus(slots, models.SlotStatusOpen, models.SlotStatusHold); err != nil {
 		return err
 	}
 
 	// debit transaction
 	if err := s.acc.Debit(slots, uid, txnid.String()); err != nil {
-		s.log.Debugf("DebitTransactionFailed:: reverting changes to db with [Status: %s, Slots: %+v]", models.SLOT_STATUS_OPEN, slots)
-		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_OPEN); dbErr != nil {
+		s.log.Debugf("DebitTransactionFailed:: reverting changes to db with [Status: %s, Slots: %+v]", models.SlotStatusOpen, slots)
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SlotStatusHold, models.SlotStatusOpen); dbErr != nil {
 			return dbErr
 		}
 		return err
@@ -187,7 +187,7 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 
 	// create transactions
 	if _, err := s.rep.Create(transactions); err != nil {
-		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_OPEN); dbErr != nil {
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SlotStatusHold, models.SlotStatusOpen); dbErr != nil {
 			return dbErr
 		}
 		return err
@@ -195,7 +195,7 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 
 	// retry update slots on error
 	for retry := 0; retry < 3; retry++ {
-		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_BOOKED); dbErr == nil {
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SlotStatusHold, models.SlotStatusBooked); dbErr == nil {
 			break
 		}
 	}
@@ -215,7 +215,7 @@ func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errC
 	}
 	// Process fetched slots
 	var fetchedSlots []api.SlotResponse
-	slotStatus := models.SLOT_STATUS_CLOSED
+	slotStatus := models.SlotStatusClosed
 	for _, slot := range slots {
 		if filters["uid"] != "" && slot.BookedBy != nil {
 			if *slot.BookedBy == filters["uid"] {
@@ -236,11 +236,11 @@ func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errC
 			BookedBy:   slot.BookedBy,
 			BookedDate: bookedDate,
 		}
-		if slotStatus == models.SLOT_STATUS_CLOSED && apiSlot.Status != models.SLOT_STATUS_OPEN {
+		if slotStatus == models.SlotStatusClosed && apiSlot.Status != models.SlotStatusOpen {
 			slotStatus = apiSlot.Status
 		}
-		if apiSlot.Status == models.SLOT_STATUS_OPEN {
-			slotStatus = models.SLOT_STATUS_OPEN
+		if apiSlot.Status == models.SlotStatusOpen {
+			slotStatus = models.SlotStatusOpen
 		}
 		fetchedSlots = append(fetchedSlots, apiSlot)
 	}
