@@ -9,6 +9,7 @@ MARIADB_PASSWORD = password
 MARIADB_DB_NAME = test_db
 CONTAINER_NAME = "test_mariadb"
 SEED_FILE_PATH = ${HOME}/.admgr/mysql
+COVERAGE_REPORT_DIR = ./coverage
 
 default: build
 
@@ -44,8 +45,16 @@ pre-checks:
 
 	@echo "Pre-checks complete."
 
+ensure-output-dir:
+	@mkdir -p ${COVERAGE_REPORT_DIR}
+
+
 test: build
 	@go test -v ./...
+
+coverage: build ensure-output-dir
+	@go test -coverprofile=${COVERAGE_REPORT_DIR}/coverage.out ./...
+	@go tool cover -html=${COVERAGE_REPORT_DIR}/coverage.out -o ${COVERAGE_REPORT_DIR}/coverage.html
 
 clean:
 	@echo "Cleaning all resources"
