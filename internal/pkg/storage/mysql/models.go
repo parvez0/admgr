@@ -1,6 +1,9 @@
 package mysql
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
@@ -19,6 +22,23 @@ type Slot struct {
 	BookedDate  *time.Time  `gorm:"type:datetime" json:"booked_date,omitempty"`
 	BookedBy    *string     `gorm:"type:varchar(36)" json:"booked_by,omitempty"`
 	Transaction Transaction `gorm:"ForeignKey:Date,Position;References:Date,Position"`
+}
+
+func (s *Slot) Value() (driver.Value, error) {
+	if s == nil {
+		return nil, nil
+	}
+	return json.Marshal(s)
+}
+
+func (s *Slot) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	if b, ok := value.([]byte); ok {
+		return json.Unmarshal(b, s)
+	}
+	return errors.New("failed to scan SlotJSON")
 }
 
 // Transaction represents a transaction in the ad manager system.

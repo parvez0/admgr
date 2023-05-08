@@ -37,14 +37,9 @@ func Handler(log *logrus.Logger, s core.Service) (*gin.Engine, error) {
 
 func createSlotHandler(c *gin.Context) {
 	var requestBody []*api.CreateSlotRequestBody
-	jsonData, err := c.GetRawData()
+	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
-		return
-	}
-	err = json.Unmarshal(jsonData, &requestBody)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": DecodeFailureErrorMsg + err.Error()})
 		return
 	}
 	for i, slotRequest := range requestBody {
@@ -55,7 +50,7 @@ func createSlotHandler(c *gin.Context) {
 	}
 	er := service.CreateSlots(requestBody)
 	if er != nil {
-		httpCode, msg := getHttpCodeAndMessage(er.(*models.Error))
+		httpCode, msg := getHttpCodeAndMessage(er)
 		if msg == "" {
 			msg = DefaultErrorMsg
 		}
@@ -71,15 +66,17 @@ func getSlotHandler(c *gin.Context) {
 	reqParams, requiredParams := c.Request.URL.Query(), map[string]bool{"start_date": true, "end_date": true}
 	params := make(map[string]interface{})
 	for k, v := range reqParams {
-		if requiredParams[k] && len(v) == 0 {
+		params[k] = strings.Join(v, "")
+	}
+	for k := range requiredParams {
+		if v, e := params[k]; !e || v == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("%s is required", k)})
 			return
 		}
-		params[k] = strings.Join(v, "")
 	}
 	res, er := service.GetSlots(params)
 	if er != nil {
-		httpCode, msg := getHttpCodeAndMessage(er.(*models.Error))
+		httpCode, msg := getHttpCodeAndMessage(er)
 		if msg == "" {
 			msg = DefaultErrorMsg
 		}
@@ -92,14 +89,9 @@ func getSlotHandler(c *gin.Context) {
 
 func updateSlotHandler(c *gin.Context) {
 	var requestBody []*api.CreateSlotRequestBody
-	jsonData, err := c.GetRawData()
+	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
-		return
-	}
-	err = json.Unmarshal(jsonData, &requestBody)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": DecodeFailureErrorMsg + err.Error()})
 		return
 	}
 	for i, req := range requestBody {
@@ -110,18 +102,46 @@ func updateSlotHandler(c *gin.Context) {
 	}
 	affected, err := service.PatchSlots(requestBody)
 	if err != nil {
-		httpCode, erMsg := getHttpCodeAndMessage(err.(*models.Error))
+		httpCode, erMsg := getHttpCodeAndMessage(err)
 		c.AbortWithStatusJSON(httpCode, gin.H{"error": erMsg})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Total %d records updated", affected)})
 }
 
-func reserveSlotHandler(c *gin.Context) {}
+func reserveSlotHandler(c *gin.Context) {
+	var requestBody []*api.ReserveSlotRequestBody
+	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+	for i, slotRequest := range requestBody {
+		if err := api.ValidateWithTags(slotRequest, fmt.Sprintf(".[%d].", i)); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("BadRequest:: [Error: %s]", err.Error())})
+			return
+		}
+	}
+	uid := c.Query("uid")
+	if uid == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Query param 'uid' cannot be empty"})
+		return
+	}
+	err = service.ReserveSlots(requestBody, uid)
+	if err != nil {
+		httpCode, erMsg := getHttpCodeAndMessage(err)
+		c.AbortWithStatusJSON(httpCode, gin.H{"error": erMsg})
+		return
+	}
+	c.JSON(http.StatusOK, "ok")
+}
 
-func getHttpCodeAndMessage(er *models.Error) (int, string) {
-	var httpCode int
-
+func getHttpCodeAndMessage(err error) (int, string) {
+	httpCode := http.StatusInternalServerError
+	if _, ok := err.(*models.Error); !ok {
+		return httpCode, err.Error()
+	}
+	er := err.(*models.Error)
 	switch er.Type {
 	case models.DecodeFailureError:
 		httpCode = http.StatusBadRequest
@@ -138,6 +158,8 @@ func getHttpCodeAndMessage(er *models.Error) (int, string) {
 		}
 	case models.DetailedResourceInfoNotFound:
 		httpCode = http.StatusNotFound
+	case models.DependentServiceRequestFailed:
+		httpCode = http.StatusFailedDependency
 	default:
 		logger.Errorf("Invalid Error Type, so returning 500")
 		httpCode = http.StatusInternalServerError

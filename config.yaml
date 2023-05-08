@@ -23,3 +23,8 @@ db:
   name: "admgr"
   username: "root"
   password: "password"
+
+# external service connection information
+accounting:
+  host: http://localhost
+  port: 10002

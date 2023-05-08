@@ -28,3 +28,7 @@ func (jt *JSONDate) MarshalJSON() ([]byte, error) {
 	t := time.Time(*jt)
 	return json.Marshal(t.Format(time.DateOnly))
 }
+
+func PtrString(s string) *string {
+	return &s
+}

@@ -3,6 +3,7 @@ package mysql
 import (
 	"errors"
 	"fmt"
+	"gorm.io/gorm/clause"
 	"net"
 	"time"
 
@@ -102,6 +103,7 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 	tx, affectedRows := s.db.Begin(), 0
 	for _, slot := range slots {
 		res := tx.Model(&Slot{}).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("date = ? and position = ?", slot.Date.Format(time.DateOnly), slot.Position).
 			Omit("date", "position").
 			Updates(slot)
@@ -124,21 +126,12 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 }
 
 func (s *Storage) SearchSlots(filters map[string]interface{}) ([]*Slot, error) {
-	var (
-		values []interface{}
-		slots  []*Slot
-		query  string
-	)
+	var slots []*Slot
+	query := s.db.Model(&Slot{})
 	for key, value := range filters {
-		if query != "" {
-			query += "and "
-		}
-		query += fmt.Sprintf("%s=? ", key)
-		values = append(values, value)
+		query = query.Debug().Where(fmt.Sprintf("%s = ?", key), value)
 	}
-	res := s.db.Model(&Slot{}).
-		Where(query, values...).
-		Find(&slots)
+	res := query.Find(&slots)
 	if res.Error != nil {
 		return nil, models.NewError(
 			fmt.Sprintf("SearchRecordFailed::%s", res.Error),
@@ -146,6 +139,47 @@ func (s *Storage) SearchSlots(filters map[string]interface{}) ([]*Slot, error) {
 		)
 	}
 	return slots, nil
+}
+
+func (s *Storage) SearchSlotsByPrimaryKeyAndStatus(date time.Time, position int32, status string) (*Slot, error) {
+	var slot Slot
+	if err := s.db.Model(&Slot{}).
+		Debug().
+		Where("date = ? AND position = ? AND status = ?", date.Format(time.DateOnly), position, status).
+		First(&slot).Error; err != nil {
+		return nil, models.NewError(
+			fmt.Sprintf("SearchFirstRecordFailed:: %s", err.Error()),
+			models.InternalProcessingError,
+		)
+	}
+	return &slot, nil
+}
+
+func (s *Storage) UpdateSlotsStatus(slots []*Slot, lastStatus, newStatus string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for i, slot := range slots {
+			var resSlot Slot
+			if err := tx.Model(&Slot{}).
+				Debug().
+				Where("date = ? AND position = ? AND status = ?", slot.Date.Format(time.DateOnly), slot.Position, lastStatus).
+				First(&resSlot).
+				Error; err != nil {
+				return models.NewError(
+					fmt.Sprintf("SearchFailed:: Record cannot be booked %+v", slot),
+					models.ActionForbidden,
+				)
+			}
+			resSlot.Status = &newStatus
+			if err := s.db.Save(&resSlot).Error; err != nil {
+				return models.NewError(
+					fmt.Sprintf("UpdateStatusFailed:: [Error: %s, Slot: %+v]", err.Error(), resSlot),
+					models.InternalProcessingError,
+				)
+			}
+			slots[i] = &resSlot
+		}
+		return nil
+	})
 }
 
 func (s *Storage) DropAll() error {

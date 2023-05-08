@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/kiran-anand14/admgr/internal/pkg/api"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"github.com/kiran-anand14/admgr/internal/pkg/storage/mysql"
@@ -15,25 +16,29 @@ type Service interface {
 	CreateSlots(slots []*api.CreateSlotRequestBody) error
 	PatchSlots(slots []*api.CreateSlotRequestBody) (int, error)
 	GetSlots(filters map[string]interface{}) ([]*api.GetSlotsResponse, error)
+	ReserveSlots(request []*api.ReserveSlotRequestBody, uid string) error
 }
 
 // Repository provides access to User repository.
 type Repository interface {
 	Create(interface{}) (int, error)
-	UpdateSlots(slot []*mysql.Slot) (int, error)
+	UpdateSlots(slots []*mysql.Slot) (int, error)
 	SearchSlots(filters map[string]interface{}) ([]*mysql.Slot, error)
+	UpdateSlotsStatus(slots []*mysql.Slot, lastStatus, newStatus string) error
 }
 
 type service struct {
 	log *logrus.Logger
-	r   Repository
+	acc AccountingService
+	rep Repository
 }
 
 // NewService creates an adding service with the necessary dependencies
-func NewService(r Repository, log *logrus.Logger) Service {
+func NewService(r Repository, a AccountingService, log *logrus.Logger) Service {
 	s := service{
 		log: log,
-		r:   r,
+		rep: r,
+		acc: a,
 	}
 	return &s
 }
@@ -57,7 +62,7 @@ func (s *service) CreateSlots(createReqBody []*api.CreateSlotRequestBody) error 
 		slotsToCreate = append(slotsToCreate, slots...)
 	}
 	s.log.Debugf("CreateSlots:: Adding %v to Repository", slotsToCreate)
-	_, er := s.r.Create(slotsToCreate)
+	_, er := s.rep.Create(slotsToCreate)
 	if er != nil {
 		return er
 	}
@@ -82,7 +87,7 @@ func (s *service) PatchSlots(patchReqBody []*api.CreateSlotRequestBody) (int, er
 		slotsToUpdate = append(slotsToUpdate, slots...)
 	}
 	s.log.Debugf("CreateSlots:: Adding %v to Repository", slotsToUpdate)
-	return s.r.UpdateSlots(slotsToUpdate)
+	return s.rep.UpdateSlots(slotsToUpdate)
 }
 
 func (s *service) GetSlots(filters map[string]interface{}) ([]*api.GetSlotsResponse, error) {
@@ -135,12 +140,75 @@ func (s *service) GetSlots(filters map[string]interface{}) ([]*api.GetSlotsRespo
 	return allSlots, nil
 }
 
+func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid string) error {
+	var (
+		slots        []*mysql.Slot
+		transactions []*mysql.Transaction
+	)
+
+	txnid, err := uuid.NewUUID()
+	if err != nil {
+		return models.NewError(
+			"failed to create new transaction id",
+			models.InternalProcessingError,
+		)
+	}
+
+	// prepare slots and transactions
+	for _, r := range reserveRequest {
+		date := time.Time(r.Date)
+		slot := &mysql.Slot{
+			Date:     &date,
+			Position: r.Position,
+			Status:   models.PtrString(models.SLOT_STATUS_HOLD),
+		}
+		txn := &mysql.Transaction{
+			Txnid:    txnid.String(),
+			Date:     &date,
+			Position: r.Position,
+		}
+		slots = append(slots, slot)
+		transactions = append(transactions, txn)
+	}
+
+	// update slots
+	if err := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_OPEN, models.SLOT_STATUS_HOLD); err != nil {
+		return err
+	}
+
+	// debit transaction
+	if err := s.acc.Debit(slots, uid, txnid.String()); err != nil {
+		s.log.Debugf("DebitTransactionFailed:: reverting changes to db with [Status: %s, Slots: %+v]", models.SLOT_STATUS_OPEN, slots)
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_OPEN); dbErr != nil {
+			return dbErr
+		}
+		return err
+	}
+
+	// create transactions
+	if _, err := s.rep.Create(transactions); err != nil {
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_OPEN); dbErr != nil {
+			return dbErr
+		}
+		return err
+	}
+
+	// retry update slots on error
+	for retry := 0; retry < 3; retry++ {
+		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SLOT_STATUS_HOLD, models.SLOT_STATUS_BOOKED); dbErr == nil {
+			break
+		}
+	}
+
+	return nil
+}
+
 func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errCh chan error, resCh chan *api.GetSlotsResponse, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
 	filters["date"] = date.Format(time.DateOnly)
-	slots, err := s.r.SearchSlots(filters)
+	slots, err := s.rep.SearchSlots(filters)
 	if err != nil {
 		errCh <- err
 		return
@@ -168,6 +236,9 @@ func (s *service) fetchSlot(filters map[string]interface{}, date time.Time, errC
 			BookedBy:   slot.BookedBy,
 			BookedDate: bookedDate,
 		}
+		if slotStatus == models.SLOT_STATUS_CLOSED && apiSlot.Status != models.SLOT_STATUS_OPEN {
+			slotStatus = apiSlot.Status
+		}
 		if apiSlot.Status == models.SLOT_STATUS_OPEN {
 			slotStatus = models.SLOT_STATUS_OPEN
 		}
@@ -185,7 +256,7 @@ func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody) ([]*mysq
 	var slots []*mysql.Slot
 	for date := time.Time(req.StartDate); date.Before(time.Time(req.EndDate)) || date.Equal(time.Time(req.EndDate)); date = date.AddDate(0, 0, 1) {
 		if req.Position[0] > 1 {
-			preSlots, err := s.r.SearchSlots(
+			preSlots, err := s.rep.SearchSlots(
 				map[string]interface{}{
 					"date":     date.Format(time.DateOnly),
 					"position": req.Position[0] - 1,

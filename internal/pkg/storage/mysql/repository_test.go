@@ -134,6 +134,34 @@ func (r *RepositoryTestSuite) Test_Search() {
 	assert.Empty(r.T(), slotRes)
 }
 
+func (r *RepositoryTestSuite) Test_SearchWithPrimaryKeyAndStatus() {
+	slotF := SlotFactory{}
+	slots := slotF.WithInstances(5).Build()
+	_, err := r.repository.Create(slots)
+	assert.Nil(r.T(), err, "Expected to create slots")
+	for _, s := range slots {
+		firstSlot, err := r.repository.SearchSlotsByPrimaryKeyAndStatus(*s.Date, *s.Position, *s.Status)
+		assert.Nil(r.T(), err)
+		assert.Equal(r.T(), *s.Status, *firstSlot.Status)
+		assert.Equal(r.T(), *s.Cost, *firstSlot.Cost)
+		assert.Equal(r.T(), s.Date.Format(time.DateOnly), firstSlot.Date.Format(time.DateOnly))
+		assert.Equal(r.T(), *s.Position, *firstSlot.Position)
+	}
+}
+
+func (r *RepositoryTestSuite) Test_UpdateSlotsStatus() {
+	slotF := SlotFactory{}
+	slot := slotF.WithStatus([]string{models.SLOT_STATUS_OPEN}).WithInstances(1).Build()
+	_, err := r.repository.Create(slot)
+	assert.Nil(r.T(), err, "Expected to create slots")
+	err = r.repository.UpdateSlotsStatus(slot, *slot[0].Status, models.SLOT_STATUS_CLOSED)
+	assert.Nil(r.T(), err)
+	date, position, status := *slot[0].Date, *slot[0].Position, models.SLOT_STATUS_CLOSED
+	firstSlot, err := r.repository.SearchSlotsByPrimaryKeyAndStatus(date, position, status)
+	assert.Nil(r.T(), err)
+	assert.NotNil(r.T(), firstSlot)
+}
+
 func TestRepositorySuite(t *testing.T) {
 	suite.Run(t, new(RepositoryTestSuite))
 }

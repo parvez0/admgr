@@ -27,6 +27,11 @@ type GetRequestParameters struct {
 	Status    *string         `json:"status,omitempty" form:"status,omitempty"`
 }
 
+type ReserveSlotRequestBody struct {
+	Date     models.JSONDate `json:"date,omitempty" validate:"json_date"`
+	Position *int32          `json:"position" validate:"required"`
+}
+
 type GetSlotsResponse struct {
 	Date   time.Time       `json:"date"`
 	Status string          `json:"status"`
@@ -39,4 +44,22 @@ type SlotResponse struct {
 	Status     string           `json:"status"`
 	BookedBy   *string          `json:"booked_by,omitempty"`
 	BookedDate *models.JSONDate `json:"booked_date,omitempty"`
+}
+
+type AccountingRequestBody struct {
+	Source   string             `json:"source"`
+	Uid      string             `json:"uid"`
+	Amount   float64            `json:"amount"`
+	Txnid    string             `json:"txnid"`
+	Metadata AccountingMetadata `json:"metadata"`
+}
+
+type AccountingMetadata struct {
+	Slots []AccountingMetadataSlot `json:"slots"`
+}
+
+type AccountingMetadataSlot struct {
+	Date     time.Time `json:"date"`
+	Position int32     `json:"position"`
+	Cost     float64   `json:"cost"`
 }

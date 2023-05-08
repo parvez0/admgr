@@ -11,6 +11,7 @@ const (
 	ResourceNotFoundError          = 4
 	ActionForbidden                = 5
 	DetailedResourceInfoNotFound   = 6
+	DependentServiceRequestFailed  = 7
 )
 
 type Error struct {

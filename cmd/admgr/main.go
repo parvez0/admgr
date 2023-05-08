@@ -25,6 +25,7 @@ func main() {
 	addr := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
 
 	var service core.Service
+	var accountService core.AccountingService
 
 	dbConf := models.DBConf{
 		Host:     cnf.DB.Host,
@@ -39,7 +40,8 @@ func main() {
 		return
 	}
 
-	service = core.NewService(s, logger)
+	accountService = core.NewAccountingService(cnf.Accounting.Host, cnf.Accounting.Port, cnf.InstanceId, logger)
+	service = core.NewService(s, accountService, logger)
 
 	r, _ := rest.Handler(logger, service)
 
