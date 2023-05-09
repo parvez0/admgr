@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -35,4 +36,24 @@ func PtrString(s string) *string {
 
 func PtrDate(d time.Time) *time.Time {
 	return &d
+}
+
+func PtrInt(p int32) *int32 {
+	return &p
+}
+
+func DateToString(d time.Time) string {
+	return d.Format(time.DateOnly)
+}
+
+func JsonDate(d time.Time) JSONDate {
+	return JsonDate(d)
+}
+
+func JsonDatePtr(d JSONDate) *JSONDate {
+	return &d
+}
+
+func Int32ToString(d int32) string {
+	return fmt.Sprintf("%d", d)
 }

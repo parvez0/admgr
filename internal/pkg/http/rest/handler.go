@@ -30,6 +30,7 @@ func Handler(log *logrus.Logger, s core.Service) (*gin.Engine, error) {
 	r.POST("/adslots", createSlotHandler)
 	r.GET("/adslots", getSlotHandler)
 	r.PATCH("/adslots", updateSlotHandler)
+	r.DELETE("/adslots", deleteSlotHandler)
 	r.PATCH("/adslots/reserve", reserveSlotHandler)
 
 	return r, nil
@@ -58,13 +59,13 @@ func createSlotHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, "ok")
+	c.Status(http.StatusCreated)
 	return
 }
 
 func getSlotHandler(c *gin.Context) {
 	reqParams, requiredParams := c.Request.URL.Query(), map[string]bool{"start_date": true, "end_date": true}
-	params := make(map[string]interface{})
+	params := make(map[string]string)
 	for k, v := range reqParams {
 		params[k] = strings.Join(v, "")
 	}
@@ -107,6 +108,28 @@ func updateSlotHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Total %d records updated", affected)})
+}
+
+func deleteSlotHandler(c *gin.Context) {
+	var requestBody []*api.DeleteSlotRequestBody
+	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		return
+	}
+	for i, req := range requestBody {
+		if time.Time(req.StartDate).IsZero() || time.Time(req.StartDate).IsZero() || len(req.Position) == 0 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf(".[%d].start_date, .[%d].end_date or .[%d].position is missing in request body", i, i, i)})
+			return
+		}
+	}
+	err = service.DeleteSlots(requestBody)
+	if err != nil {
+		httpCode, erMsg := getHttpCodeAndMessage(err)
+		c.AbortWithStatusJSON(httpCode, gin.H{"error": erMsg})
+		return
+	}
+	c.Status(http.StatusOK)
 }
 
 func reserveSlotHandler(c *gin.Context) {

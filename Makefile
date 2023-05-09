@@ -6,7 +6,7 @@ GO_VERSION_REQ = 1.20
 MARIADB_IMAGE = docker.io/library/mariadb:10.5
 MARIADB_PORT = 3306
 MARIADB_PASSWORD = password
-MARIADB_DB_NAME = test_db
+MARIADB_DB_NAME = admgr
 CONTAINER_NAME = "test_mariadb"
 SEED_FILE_PATH = ${HOME}/.admgr/mysql
 COVERAGE_REPORT_DIR = ./coverage
@@ -18,11 +18,15 @@ build: pre-checks
 	@go get ./...
 	@echo "Pulling Mariadb docker image and starting mariadb server on port ${MARIADB_PORT}"
 	@docker pull ${MARIADB_IMAGE}
-	docker run --rm \
+	@docker run --rm \
 		--name ${CONTAINER_NAME} \
 		-e MYSQL_ROOT_PASSWORD=${MARIADB_PASSWORD} \
 		-e MARIADB_DATABASE=${MARIADB_DB_NAME} \
 		-p 3306:${MARIADB_PORT} -d ${MARIADB_IMAGE} 2> /dev/null || true
+	@docker exec -it \
+		${CONTAINER_NAME} \
+		mysql -u root -p${MARIADB_PASSWORD} \
+		-e "CREATE SCHEMA IF NOT EXISTS ${MARIADB_DB_NAME};"
 
 pre-checks:
 	@echo "Checking if Docker is installed..."

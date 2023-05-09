@@ -21,7 +21,7 @@ type Slot struct {
 	Modified    time.Time   `gorm:"autoUpdateTime" json:"modified"`
 	BookedDate  *time.Time  `gorm:"type:datetime" json:"booked_date,omitempty"`
 	BookedBy    *string     `gorm:"type:varchar(36)" json:"booked_by,omitempty"`
-	Transaction Transaction `gorm:"ForeignKey:Date,Position;References:Date,Position"`
+	Transaction Transaction `gorm:"ForeignKey:Date,Position;References:Date,Position;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 func (s *Slot) Value() (driver.Value, error) {
@@ -39,6 +39,11 @@ func (s *Slot) Scan(value interface{}) error {
 		return json.Unmarshal(b, s)
 	}
 	return errors.New("failed to scan SlotJSON")
+}
+
+func (s *Slot) ToString() string {
+	bs, _ := json.Marshal(s)
+	return string(bs)
 }
 
 // Transaction represents a transaction in the ad manager system.
@@ -77,4 +82,14 @@ func (t *Transaction) BeforeCreate(tx *gorm.DB) (err error) {
 	t.Date = slot.Date
 	t.Position = slot.Position
 	return nil
+}
+
+type GetOptions struct {
+	StartDate          time.Time
+	EndDate            time.Time
+	PositionStart      string
+	PositionEnd        string
+	Status             string
+	Uid                string
+	PreloadTransaction bool
 }

@@ -4,7 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
+	"io"
+	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -20,12 +24,13 @@ type Storage struct {
 	logger   *logrus.Logger
 	seedFile string
 	db       *gorm.DB
+	loglevel string
 }
 
-func NewStorage(log *logrus.Logger, dbConf *models.DBConf) (*Storage, error) {
+func NewStorage(_log *logrus.Logger, writer io.Writer, logLevel string, dbConf *models.DBConf) (*Storage, error) {
 	s := new(Storage)
 
-	s.logger = log
+	s.logger = _log
 
 	dsn := dbConf.Username + ":" + dbConf.Password + "@tcp" + "(" + dbConf.Host +
 		":" + dbConf.Port + ")/" + dbConf.Name + "?" + "charset=utf8mb4&parseTime=True&loc=Local&clientFoundRows=true&timeout=60s"
@@ -36,9 +41,20 @@ func NewStorage(log *logrus.Logger, dbConf *models.DBConf) (*Storage, error) {
 	var err error
 	var retryCount uint8
 
+	gormLogger := logger.New(
+		log.New(writer, "", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             200,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  true,
+		},
+	)
 	for {
 		retryCount++
-		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+			Logger: gormLogger,
+		})
 		if err != nil {
 			if _, ok := err.(*net.OpError); ok {
 				return nil, errors.New(fmt.Sprintf("DBConnectionFailed::[Config: %+v, Error: %s]", dbConf, err))
@@ -58,6 +74,9 @@ func NewStorage(log *logrus.Logger, dbConf *models.DBConf) (*Storage, error) {
 		s.logger.Errorf("Re-tries done, couldn't connect to database")
 		return nil, errors.New("DB Connection Error")
 	}
+	if strings.ToLower(logLevel) == "debug" {
+		db = db.Debug()
+	}
 	s.logger.Infof("Connection to MariaDB Successfull, initiating db seeding")
 	err = db.AutoMigrate(&Slot{}, &Transaction{})
 	// Add foreign key constraint
@@ -76,25 +95,24 @@ func (s *Storage) Create(records interface{}) (int, error) {
 	res := s.db.Create(records)
 	if res.Error != nil {
 		err := res.Error
-		errMsg := "CreateInsertFailed::"
 		switch err.(type) {
 		case *sqlDrvMySql.MySQLError:
 			errors.As(err, &mysqlErr)
 			if mysqlErr.Number == 1062 {
-				errMsg = fmt.Sprintf("%s key duplication Error: %s while "+
-					"adding new record: %v", errMsg, mysqlErr.Error(), records)
-				dbErr = models.NewError(errMsg, models.DuplicateResourceCreationError)
+				s.logger.Errorf("DbInsertFailed:: key duplication Error: %s while "+
+					"adding new record: %+v", mysqlErr.Error(), records)
+				dbErr = models.NewError("FailedToCreate:: Duplicate records provided", models.DuplicateResourceCreationError)
 				break
 			}
-			errMsg = fmt.Sprintf("[Code: %d, Error: %s]", mysqlErr.Number, mysqlErr.Message)
-			dbErr = models.NewError(errMsg, models.InternalProcessingError)
+			s.logger.Errorf("DbInsertFailed:: [Code: %d, Error: %s]", mysqlErr.Number, mysqlErr.Message)
+			dbErr = models.NewError("FailedToCreate:: Internal server error", models.InternalProcessingError)
 		default:
-			errMsg = fmt.Sprintf("%s %s", errMsg, err.Error())
-			dbErr = models.NewError(errMsg, models.InternalProcessingError)
+			s.logger.Errorf("DbInsertFailed:: [Code: %d, Error: %s]", mysqlErr.Number, mysqlErr.Message)
+			dbErr = models.NewError("FailedToCreate:: Internal server error", models.InternalProcessingError)
 		}
 		return 0, dbErr
 	}
-	s.logger.Infof("Total %d records created successfully", res.RowsAffected)
+	s.logger.Infof("Create:: Total %d records created successfully", res.RowsAffected)
 	return int(res.RowsAffected), nil
 }
 
@@ -108,11 +126,13 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 			Omit("date", "position").
 			Updates(slot)
 		if res.Error != nil {
-			dbError = models.NewError(fmt.Sprintf("UpdateRecordsFailed:: %s :: %+v", res.Error, slot), models.InternalProcessingError)
+			s.logger.Errorf("UpdateRecordsFailed:: %s :: %+v", res.Error, slot)
+			dbError = models.NewError("PatchFailed:: Internal server error", models.InternalProcessingError)
 			break
 		}
 		if res.RowsAffected == 0 {
-			dbError = models.NewError(fmt.Sprintf("UpdateRecordsFailed::RecordNotFound::%+v", slot), models.ActionForbidden)
+			s.logger.Debug("UpdateRecords:: Slot not found in DB [", slot.ToString(), "] reverting changes")
+			dbError = models.NewError(fmt.Sprintf("Slot details not found %s", slot.ToString()), models.ActionForbidden)
 			break
 		}
 		affectedRows += int(res.RowsAffected)
@@ -121,34 +141,43 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 		tx.Rollback()
 		return 0, dbError
 	}
-	s.logger.Infof("Total %d records affected, updated successfully", affectedRows)
+	s.logger.Infof("Update:: Total %d records affected, updated successfully", affectedRows)
 	return affectedRows, tx.Commit().Error
 }
 
-func (s *Storage) SearchSlots(filters map[string]interface{}) ([]*Slot, error) {
+func (s *Storage) GetSlotsInRange(options *GetOptions) ([]*Slot, error) {
 	var slots []*Slot
-	query := s.db.Model(&Slot{})
-	for key, value := range filters {
-		query = query.Debug().Where(fmt.Sprintf("%s = ?", key), value)
+	query := s.db.Model(&Slot{}).
+		Where("date BETWEEN ? AND ?", options.StartDate.Format(time.DateOnly), options.EndDate.Format(time.DateOnly))
+	if options.PositionStart != "" && options.PositionEnd != "" {
+		query = query.Where("position BETWEEN ? AND ?", options.PositionStart, options.PositionEnd)
+	}
+	if options.Status != "" {
+		query = query.Where("status = ?", options.Status)
+	}
+	if options.Uid != "" {
+		query = query.Where("booked_by = ?", options.Uid)
 	}
 	res := query.Find(&slots)
 	if res.Error != nil {
+		s.logger.Errorf("GetSlotsInRange::[%+v]", options)
 		return nil, models.NewError(
-			fmt.Sprintf("SearchRecordFailed::%s", res.Error),
+			"GetSlotsInRangeFailed:: Internal server error",
 			models.InternalProcessingError,
 		)
 	}
+	s.logger.Infof("Search:: Total %d records found", res.RowsAffected)
 	return slots, nil
 }
 
 func (s *Storage) SearchSlotsByPrimaryKeyAndStatus(date time.Time, position int32, status string) (*Slot, error) {
 	var slot Slot
 	if err := s.db.Model(&Slot{}).
-		Debug().
 		Where("date = ? AND position = ? AND status = ?", date.Format(time.DateOnly), position, status).
 		First(&slot).Error; err != nil {
+		s.logger.Errorf("SearchByPrimaryKeyFailed:: [Data: {date: %v, position: %d, status: %s}, Error:]", date, position, status)
 		return nil, models.NewError(
-			fmt.Sprintf("SearchFirstRecordFailed:: %s", err.Error()),
+			"FailedToSearchSlot:: Internal server error",
 			models.InternalProcessingError,
 		)
 	}
@@ -160,19 +189,19 @@ func (s *Storage) UpdateSlotsStatus(slots []*Slot, lastStatus, newStatus string)
 		for i, slot := range slots {
 			var resSlot Slot
 			if err := tx.Model(&Slot{}).
-				Debug().
 				Where("date = ? AND position = ? AND status = ?", slot.Date.Format(time.DateOnly), slot.Position, lastStatus).
 				First(&resSlot).
 				Error; err != nil {
 				return models.NewError(
-					fmt.Sprintf("SearchFailed:: Record cannot be booked %+v", slot),
+					fmt.Sprintf("SlotNotFound:: Slot cannot be booked [date: %s, position: %v]", models.DateToString(*slot.Date), *slot.Position),
 					models.ActionForbidden,
 				)
 			}
 			resSlot.Status = &newStatus
 			if err := s.db.Save(&resSlot).Error; err != nil {
+				s.logger.Errorf("SlotUpdateFailed:: [Error: %s, Slot: %+v]", err.Error(), resSlot)
 				return models.NewError(
-					fmt.Sprintf("UpdateStatusFailed:: [Error: %s, Slot: %+v]", err.Error(), resSlot),
+					fmt.Sprintf("SlotUpdateFailed:: Internal server error"),
 					models.InternalProcessingError,
 				)
 			}
@@ -180,6 +209,16 @@ func (s *Storage) UpdateSlotsStatus(slots []*Slot, lastStatus, newStatus string)
 		}
 		return nil
 	})
+}
+
+func (s *Storage) Delete(records interface{}) (int, error) {
+	res := s.db.Delete(records)
+	if res.Error != nil {
+		s.logger.Errorf("DeleteRecordsFailed:: [Error: %s, Records: %+v]", res.Error, records)
+		return 0, models.NewError("DeleteFailed:: Internal server error", models.InternalProcessingError)
+	}
+	s.logger.Infof("Delete:: Total %d matching records deleted", res.RowsAffected)
+	return int(res.RowsAffected), nil
 }
 
 func (s *Storage) DropAll() error {

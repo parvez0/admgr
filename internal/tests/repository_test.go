@@ -1,4 +1,4 @@
-package mysql_test
+package tests_test
 
 import (
 	"fmt"
@@ -7,7 +7,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"io"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 )
@@ -28,9 +30,10 @@ func (r *RepositoryTestSuite) BeforeTest(suiteName, test string) {
 	logrus.SetLevel(logrus.DebugLevel)
 	logger := logrus.New()
 	var err error
-	r.repository, err = mysql.NewStorage(logger, conf)
+	r.repository, err = mysql.NewStorage(logger, io.MultiWriter(os.Stdout), "info", conf)
 	assert.Nil(r.T(), err, fmt.Sprintf("MysqlSeedingFailed::%+v", conf))
 }
+
 func (r *RepositoryTestSuite) AfterTest(suiteName, test string) {
 	if r.repository == nil {
 		r.T().Fatalf("DB instance not initialized")

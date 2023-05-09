@@ -62,8 +62,13 @@ func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {
 	}
 	res, err := a.restClient.Do(req)
 	if err != nil || res.StatusCode != http.StatusOK {
+		statusCode := -1
+		if res != nil {
+			statusCode = res.StatusCode
+		}
+		a.log.Errorf("DebitTransactionFailed::[StatusCode: %d, Error: %v]", statusCode, err)
 		return models.NewError(
-			fmt.Sprintf("DebitTransactionFailed::[StatusCode: %d, Error: %v]", res.StatusCode, err),
+			"Debit transaction failed",
 			models.DependentServiceRequestFailed,
 		)
 	}

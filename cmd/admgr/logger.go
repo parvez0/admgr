@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/sirupsen/logrus"
+	"io"
 )
 
 // Logger provides an interface to convert
@@ -25,27 +22,11 @@ type Logger interface {
 }
 
 var logger *logrus.Logger
-var fd *os.File
 
 // InitializeLogger returns a logrus custom_logger object with prefilled options
-func InitializeLogger(config *Config) Logger {
+func InitializeLogger(config *Config, writer io.Writer) Logger {
 	if logger != nil {
 		return logger
-	}
-	absPath := ""
-	fmt.Println("Output File Path: ", config.Logger.OutputFilePath)
-	if config.Logger.OutputFilePath != "" {
-		var err error
-		absPath, err = filepath.Abs(config.Logger.OutputFilePath)
-		if err != nil {
-			panic(fmt.Errorf("failed to load logfile : %s", err.Error()))
-		}
-		fmt.Println("Abs Path: ", absPath)
-		path := strings.Split(absPath, "/")
-		_, err = os.Stat(strings.Join(path[:len(path)-1], "/"))
-		if err != nil {
-			panic(fmt.Errorf("failed to load logfile : %s", err.Error()))
-		}
 	}
 
 	baseLogger := logrus.New()
@@ -62,15 +43,7 @@ func InitializeLogger(config *Config) Logger {
 		FullTimestamp: config.Logger.FullTimestamp,
 	})
 
-	// directing log output to a file if OutfilePath is defined, by default it will log to stdout
-	if config.Logger.OutputFilePath != "" {
-		fd, err = os.OpenFile(absPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
-		if err != nil {
-			fmt.Printf("failed to open file %s for logging - %s", absPath, err.Error())
-			os.Exit(1)
-		}
-		baseLogger.SetOutput(fd)
-	}
+	baseLogger.SetOutput(writer)
 
 	// set to true for showing filename and line number from where custom_logger being called
 	baseLogger.SetReportCaller(false)
@@ -78,12 +51,4 @@ func InitializeLogger(config *Config) Logger {
 
 	logger = baseLogger
 	return logger
-}
-
-func CloseLogger() {
-	if fd != nil {
-		logger.Debugf("flusing pending logs to file and close the descriptor")
-		fd.Sync()
-		fd.Close()
-	}
 }
