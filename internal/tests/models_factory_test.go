@@ -201,10 +201,6 @@ func (t *TestCreateSlotRequestBodyFactory) Build() []*api.CreateSlotRequestBody 
 		Attr("Cost", func(args factory.Args) (interface{}, error) {
 			cost := randomdata.Decimal(100)
 			return &cost, nil
-		}).
-		Attr("Status", func(args factory.Args) (interface{}, error) {
-			status := models.SlotStatusOpen
-			return &status, nil
 		})
 	var records []*api.CreateSlotRequestBody
 	for i := 1; i <= t.Instances; i++ {

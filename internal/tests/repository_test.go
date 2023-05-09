@@ -117,11 +117,13 @@ func (r *RepositoryTestSuite) Test_Search() {
 	slot := slotF.WithInstances(1).Build()[0]
 	_, err := r.repository.Create(slot)
 	assert.Nil(r.T(), err, "Expected to create slots")
-	filters := map[string]interface{}{
-		"date":     slot.Date.Format(time.DateOnly),
-		"position": slot.Position,
+	getOptions := &mysql.GetOptions{
+		StartDate:     *slot.Date,
+		EndDate:       *slot.Date,
+		PositionStart: models.Int32ToString(*slot.Position),
+		PositionEnd:   models.Int32ToString(*slot.Position),
 	}
-	slotRes, err := r.repository.SearchSlots(filters)
+	slotRes, err := r.repository.GetSlotsInRange(getOptions)
 	assert.Nil(r.T(), err)
 	if err == nil {
 		assert.Equal(r.T(), slotRes[0].Date.Format(time.DateOnly), slot.Date.Format(time.DateOnly), "Expected search result to be equal")
@@ -129,10 +131,11 @@ func (r *RepositoryTestSuite) Test_Search() {
 		assert.Equal(r.T(), slotRes[0].Status, slot.Status, "Expected search result to be equal")
 		assert.Equal(r.T(), slotRes[0].Cost, slot.Cost, "Expected search result to be equal")
 	}
-	filters = map[string]interface{}{
-		"date": time.Now().Format(time.DateOnly),
+	getOptions = &mysql.GetOptions{
+		StartDate: time.Now(),
+		EndDate:   time.Now(),
 	}
-	slotRes, err = r.repository.SearchSlots(filters)
+	slotRes, err = r.repository.GetSlotsInRange(getOptions)
 	assert.Nil(r.T(), err)
 	assert.Empty(r.T(), slotRes)
 }

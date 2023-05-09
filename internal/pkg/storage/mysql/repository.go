@@ -107,7 +107,7 @@ func (s *Storage) Create(records interface{}) (int, error) {
 			s.logger.Errorf("DbInsertFailed:: [Code: %d, Error: %s]", mysqlErr.Number, mysqlErr.Message)
 			dbErr = models.NewError("FailedToCreate:: Internal server error", models.InternalProcessingError)
 		default:
-			s.logger.Errorf("DbInsertFailed:: [Code: %d, Error: %s]", mysqlErr.Number, mysqlErr.Message)
+			s.logger.Errorf("DbInsertFailed:: [Code: %d, Error: %s]", -1, err)
 			dbErr = models.NewError("FailedToCreate:: Internal server error", models.InternalProcessingError)
 		}
 		return 0, dbErr
