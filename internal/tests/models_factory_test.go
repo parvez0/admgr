@@ -1,6 +1,7 @@
 package tests_test
 
 import (
+	"fmt"
 	"github.com/Pallinder/go-randomdata"
 	"github.com/bluele/factory-go/factory"
 	"github.com/google/uuid"
@@ -8,6 +9,8 @@ import (
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"github.com/kiran-anand14/admgr/internal/pkg/storage/mysql"
 	"github.com/stretchr/testify/assert"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -267,4 +270,115 @@ func TestFactory(t *testing.T) {
 	rrbFactory := TestReserveSlotFactory{}
 	rrb := rrbFactory.WithInstances(10).Build()
 	assert.NotNil(t, rrb)
+}
+
+type TestTemplateObject struct {
+	Search  []Search  `json:"search" json:"search"`
+	Create  []Create  `yaml:"create" json:"create"`
+	Update  []Create  `yaml:"update" json:"update"`
+	Reserve []Reserve `yaml:"reserve" json:"reserve"`
+}
+
+type Create struct {
+	Description        string             `yaml:"description" json:"description"`
+	Before             *Before            `yaml:"before,omitempty" json:"before"`
+	Request            []CreateRequest    `yaml:"request" json:"request"`
+	After              *After             `yaml:"after,omitempty" json:"after"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+
+type Search struct {
+	Description        string             `yaml:"description" json:"description"`
+	Before             *Before            `yaml:"before,omitempty" json:"before"`
+	After              *After             `yaml:"after,omitempty" json:"after"`
+	Query              Query              `yaml:"query" json:"query"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+
+type Reserve struct {
+	Description        string             `yaml:"description" json:"description"`
+	Before             *Before            `yaml:"before,omitempty" json:"before"`
+	After              *After             `yaml:"after,omitempty" json:"after"`
+	Request            []ReserveRequest   `yaml:"request" json:"request"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+
+type Query struct {
+	StartDate *Date   `yaml:"start_date" json:"start_date,omitempty"`
+	EndDate   *Date   `yaml:"end_date" json:"end_date,omitempty"`
+	Position  *int    `yaml:"position" json:"position,omitempty"`
+	Status    *string `yaml:"status" json:"status,omitempty"`
+	Uid       *string `yaml:"uid" json:"uid,omitempty"`
+}
+
+type After struct {
+	Request            []DeleteRequest    `yaml:"request" json:"request"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+type Before struct {
+	Request            []CreateRequest    `yaml:"request" json:"request"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+type DeleteRequest struct {
+	StartDate Date  `yaml:"start_date,omitempty" json:"start_date,omitempty"`
+	EndDate   Date  `yaml:"end_date,omitempty" json:"end_date,omitempty"`
+	Position  []int `yaml:"position,omitempty" json:"position,omitempty"`
+}
+type CreateRequest struct {
+	StartDate *Date    `yaml:"start_date,omitempty" json:"start_date,omitempty"`
+	EndDate   *Date    `yaml:"end_date,omitempty" json:"end_date,omitempty"`
+	Position  []int    `yaml:"position,omitempty" json:"position,omitempty"`
+	Cost      *float64 `yaml:"cost,omitempty" json:"cost,omitempty"`
+}
+
+type ReserveRequest struct {
+	Date     *Date `yaml:"date" json:"date"`
+	Position int   `yaml:"position" json:"position"`
+}
+
+type TestRequiredParams struct {
+	ExpectedStatus int            `yaml:"expected_status" json:"expected_status"`
+	ExpectedError  bool           `yaml:"expected_error" json:"expected_error"`
+	ExpectedOutput ExpectedOutput `yaml:"expected_output,omitempty" json:"expected_output"`
+	Url            string         `yaml:"url" json:"url"`
+	Method         string         `yaml:"method" json:"method"`
+}
+
+type ExpectedOutput struct {
+	Empty  bool        `yaml:"empty" json:"empty"`
+	Output interface{} `yaml:"output" json:"output"`
+}
+
+type Date string
+
+func (t *Date) UnmarshalYAML(unmarshal func(interface{}) error) error {
+
+	var buf string
+	err := unmarshal(&buf)
+	if err != nil {
+		return err
+	}
+	switch {
+	case buf == "now":
+		*t = Date(time.Now().Format(time.DateOnly))
+	case strings.HasPrefix(buf, "now+"):
+		ns := strings.Split(buf, "+")[1]
+		days, err := strconv.Atoi(ns)
+		if err != nil {
+			return fmt.Errorf("invalid number of days to add after %s", buf)
+		}
+		*t = Date(time.Now().AddDate(0, 0, days).Format(time.DateOnly))
+	case strings.HasPrefix(buf, "now-"):
+		ns := strings.Split(buf, "-")[1]
+		days, err := strconv.Atoi(ns)
+		if err != nil {
+			return fmt.Errorf("invalid number of days to add after %s", buf)
+		}
+		*t = Date(time.Now().AddDate(0, 0, -1*days).Format(time.DateOnly))
+	}
+	return nil
+}
+
+func (t Date) MarshalYAML() (interface{}, error) {
+	return string(t), nil
 }
