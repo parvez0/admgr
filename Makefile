@@ -7,6 +7,7 @@ MARIADB_IMAGE = docker.io/library/mariadb:10.5
 MARIADB_PORT = 3306
 MARIADB_PASSWORD = password
 MARIADB_DB_NAME = test_db
+MARIADB_PROD_DB_NAME = admgr
 CONTAINER_NAME = "test_mariadb"
 SEED_FILE_PATH = ${HOME}/.admgr/mysql
 COVERAGE_REPORT_DIR = ./coverage
@@ -28,7 +29,7 @@ build: pre-checks
 	docker exec -i \
 		${CONTAINER_NAME} \
 		mysql -uroot -p${MARIADB_PASSWORD} \
-		-e "CREATE SCHEMA IF NOT EXISTS ${MARIADB_DB_NAME};"
+		-e "CREATE SCHEMA IF NOT EXISTS ${MARIADB_DB_NAME}; CREATE SCHEMA IF NOT EXISTS ${MARIADB_PROD_DB_NAME};"
 
 docker-build:
 	@docker build -t kiran/admgr:${DOCKER_TAG} -f ./build/package/Dockerfile .

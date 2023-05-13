@@ -47,7 +47,7 @@ func DateToString(d time.Time) string {
 }
 
 func JsonDate(d time.Time) JSONDate {
-	return JsonDate(d)
+	return JSONDate(d)
 }
 
 func JsonDatePtr(d JSONDate) *JSONDate {

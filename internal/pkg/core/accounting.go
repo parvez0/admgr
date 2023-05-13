@@ -16,6 +16,7 @@ const ContentTypeJSON = "application/json"
 
 type AccountingService interface {
 	Debit(slots []*mysql.Slot, uid, txnid string) error
+	Status(txnid string) (*api.AccountingDebitResponse, error)
 }
 
 type accountingService struct {
@@ -23,6 +24,35 @@ type accountingService struct {
 	source     string
 	log        *logrus.Logger
 	restClient *http.Client
+}
+
+func (a accountingService) Status(txnid string) (*api.AccountingDebitResponse, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/debit", a.url), nil)
+	if err != nil {
+		return nil, models.NewError(
+			fmt.Sprintf("RestRequestFormation failed %s", err.Error()),
+			models.DecodeFailureError,
+		)
+	}
+	q := req.URL.Query()
+	q.Add("txnid", txnid)
+	req.URL.RawQuery = q.Encode()
+	a.log.Debugf("AccountingHandler: %s %s", req.Method, req.URL.String())
+	res, err := a.restClient.Do(req)
+	if err != nil || res.StatusCode != http.StatusOK {
+		statusCode := -1
+		if res != nil {
+			statusCode = res.StatusCode
+		}
+		a.log.Errorf("DebitTransactionFailed::[StatusCode: %d, Error: %v]", statusCode, err)
+		return nil, models.NewError(
+			"Debit transaction failed",
+			models.DependentServiceRequestFailed,
+		)
+	}
+	var debitResponse api.AccountingDebitResponse
+	json.NewDecoder(res.Body).Decode(&debitResponse)
+	return &debitResponse, nil
 }
 
 func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {

@@ -23,7 +23,8 @@ type Service interface {
 type Repository interface {
 	Create(interface{}) (int, error)
 	UpdateSlots(slots []*mysql.Slot) (int, error)
-	GetSlotsInRange(options *mysql.GetOptions) ([]*mysql.Slot, error)
+	SearchSlotsInRange(options *mysql.GetOptions) ([]*mysql.Slot, error)
+	SearchSlotsByStatus(options *mysql.GetOptions) ([]*mysql.Slot, error)
 	UpdateSlotsStatus(slots []*mysql.Slot, lastStatus, newStatus string) error
 	Delete(records interface{}) (int, error)
 }
@@ -41,7 +42,57 @@ func NewService(r Repository, a AccountingService, log *logrus.Logger) Service {
 		rep: r,
 		acc: a,
 	}
+	if err := s.revertFailedReservations(); err != nil {
+		s.log.Fatalf("CoreServiceInitialization: Failed to revert reservations [Error: %s]", err)
+	}
 	return &s
+}
+
+func (s *service) revertFailedReservations() error {
+	s.log.Info("Finding all slots on hold status")
+	opts := mysql.GetOptions{
+		Status:             models.SlotStatusHold,
+		PreloadTransaction: true,
+	}
+	slots, err := s.rep.SearchSlotsByStatus(&opts)
+	if err != nil {
+		return err
+	}
+	s.log.Infof("Total %d slots found to be on hold status", len(slots))
+	var slotsToUpdate []*mysql.Slot
+	for _, slot := range slots {
+		if slot.Transaction == nil {
+			s.log.Warnf("Transaction not found for [Slot: %s, Status: %v], Reverting changes", slotIdFromSlot(slot), *slot.Status)
+			slot.Status = models.PtrString(models.SlotStatusOpen)
+			slotsToUpdate = append(slotsToUpdate, slot)
+			continue
+		}
+
+		resp, err := s.acc.Status(slot.Transaction.Txnid)
+		if err != nil {
+			s.log.Errorf("Transaction details not found in accounting service [Slot: %s, Error: %s] - Reverting to Status: '%s'", slotIdFromSlot(slot), err.Error(), models.SlotStatusOpen)
+			slot.Status = models.PtrString(models.SlotStatusOpen)
+			slotsToUpdate = append(slotsToUpdate, slot)
+			continue
+		}
+
+		s.log.Infof("Transation was successfull, changing status to booked for [Slot: %s]", slotIdFromSlot(slot))
+		slot.BookedBy = &resp.UID
+		slot.BookedDate = &resp.Created
+		slot.Status = models.PtrString(models.SlotStatusBooked)
+		slotsToUpdate = append(slotsToUpdate, slot)
+	}
+	updateCount, err := s.rep.UpdateSlots(slotsToUpdate)
+	if err != nil {
+		s.log.Fatalf("Reverting changes failed [Error: %s]", err.Error())
+		return err
+	}
+	s.log.Infof("Total %d slots status updated", updateCount)
+	return nil
+}
+
+func slotIdFromSlot(s *mysql.Slot) string {
+	return fmt.Sprintf("%s-%d", s.Date.Format(time.DateOnly), *s.Position)
 }
 
 func (s *service) CreateSlots(createReqBody []*api.CreateSlotRequestBody) error {
@@ -115,7 +166,7 @@ func (s *service) GetSlots(filters map[string]string) ([]*api.GetSlotsResponse, 
 		Status:        status,
 		Uid:           uid,
 	}
-	slots, err := s.rep.GetSlotsInRange(getOptions)
+	slots, err := s.rep.SearchSlotsInRange(getOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +177,7 @@ func ConvertSlotsToJSON(slots []*mysql.Slot) ([]*api.GetSlotsResponse, error) {
 	groups := make(map[string]*api.GetSlotsResponse)
 
 	for _, s := range slots {
-		date := s.Date.Format("2006-01-02")
+		date := s.Date.Format(time.DateOnly)
 		if _, ok := groups[date]; !ok {
 			groups[date] = &api.GetSlotsResponse{
 				Date:  date,
@@ -180,7 +231,7 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 			Status:        models.SlotStatusOpen,
 			Uid:           "",
 		}
-		slot, err := s.rep.GetSlotsInRange(getOptions)
+		slot, err := s.rep.SearchSlotsInRange(getOptions)
 		if err != nil || len(slot) == 0 {
 			return models.NewError(
 				fmt.Sprintf("Slot with [date: %s, position: %d] not open", models.DateToString(date), *r.Position),
@@ -192,6 +243,9 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 			Date:     models.PtrDate(date),
 			Position: r.Position,
 		}
+		slot[0].BookedBy = models.PtrString(uid)
+		slot[0].BookedDate = models.PtrDate(time.Now())
+		slot[0].Status = models.PtrString(models.SlotStatusBooked)
 		slots = append(slots, slot[0])
 		transactions = append(transactions, txn)
 	}
@@ -225,12 +279,14 @@ func (s *service) ReserveSlots(reserveRequest []*api.ReserveSlotRequestBody, uid
 	}
 
 	// retry update slots on error
-	for retry := 0; retry < 3; retry++ {
-		if dbErr := s.rep.UpdateSlotsStatus(slots, models.SlotStatusOpen, models.SlotStatusBooked); dbErr == nil {
+	for i := 0; i < 3; i++ {
+		d, dbErr := s.rep.UpdateSlots(slots)
+		if dbErr == nil {
+			s.log.Infof("Total %d slots reserved successfully", d)
 			break
 		}
+		s.log.Errorf("UpdatedReservedData:: Failed to update slots [Retried: %d, Error: %s]", i+1, dbErr.Error())
 	}
-
 	return nil
 }
 
@@ -253,7 +309,7 @@ func (s *service) DeleteSlots(deleteReqBody []*api.DeleteSlotRequestBody) error 
 			Uid:                "",
 			PreloadTransaction: true,
 		}
-		slots, err := s.rep.GetSlotsInRange(getOptions)
+		slots, err := s.rep.SearchSlotsInRange(getOptions)
 		if err != nil {
 			return err
 		}
@@ -285,7 +341,7 @@ func (s *service) fetchSlotsFromReqBody(req *api.CreateSlotRequestBody, status *
 				Status:        "",
 				Uid:           "",
 			}
-			preSlots, err := s.rep.GetSlotsInRange(getOptions)
+			preSlots, err := s.rep.SearchSlotsInRange(getOptions)
 			if err != nil || len(preSlots) == 0 {
 				return nil, models.NewError(
 					fmt.Sprintf("Invalid date[%s] or record with position '%d' doesn't exits", models.DateToString(date), req.Position[0]-1),

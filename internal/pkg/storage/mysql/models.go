@@ -4,8 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/google/uuid"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"gorm.io/gorm"
 	"time"
@@ -13,15 +11,15 @@ import (
 
 // Slot represents a slot in the ad manager system.
 type Slot struct {
-	Date        *time.Time  `gorm:"primaryKey;type:date;not null" json:"date"`
-	Position    *int32      `gorm:"primaryKey;type:int;not null" json:"position"`
-	Cost        *float64    `gorm:"type:decimal(10,2);not null" json:"cost"`
-	Status      *string     `gorm:"type:varchar(45);not null" json:"status"`
-	Created     time.Time   `gorm:"default:CURRENT_TIMESTAMP" json:"created"`
-	Modified    time.Time   `gorm:"autoUpdateTime" json:"modified"`
-	BookedDate  *time.Time  `gorm:"type:datetime" json:"booked_date,omitempty"`
-	BookedBy    *string     `gorm:"type:varchar(36)" json:"booked_by,omitempty"`
-	Transaction Transaction `gorm:"ForeignKey:Date,Position;References:Date,Position;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Date        *time.Time   `gorm:"primaryKey;type:date;not null" json:"date"`
+	Position    *int32       `gorm:"primaryKey;type:int;not null" json:"position"`
+	Cost        *float64     `gorm:"type:decimal(10,2);not null" json:"cost"`
+	Status      *string      `gorm:"type:varchar(45);not null" json:"status"`
+	Created     time.Time    `gorm:"default:CURRENT_TIMESTAMP" json:"created"`
+	Modified    time.Time    `gorm:"autoUpdateTime" json:"modified"`
+	BookedDate  *time.Time   `gorm:"type:datetime" json:"booked_date,omitempty"`
+	BookedBy    *string      `gorm:"type:varchar(36)" json:"booked_by,omitempty"`
+	Transaction *Transaction `gorm:"ForeignKey:Date,Position;References:Date,Position;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 func (s *Slot) Value() (driver.Value, error) {
@@ -59,24 +57,37 @@ func (t *Transaction) TableName() string {
 	return "transactions"
 }
 
-func (t *Transaction) BeforeCreate(tx *gorm.DB) (err error) {
+func (t *Transaction) AfterCreate(tx *gorm.DB) (err error) {
 	var slot Slot
 	if t.Date == nil {
 		return models.NewError("column 'date' cannot be empty", models.ActionForbidden)
 	}
-	if err = tx.Where(
-		"date = ? AND position = ?",
+	if err = tx.Model(&Slot{}).Where(
+		"date = ? AND position = ? AND status = ?",
 		t.Date.Format(time.DateOnly),
-		t.Position).
-		First(&slot).Error; err != nil {
+		t.Position,
+		models.SlotStatusOpen).
+		Update("status", models.SlotStatusHold).Error; err != nil {
 		return err
 	}
+	// Set foreign key
+	t.Date = slot.Date
+	t.Position = slot.Position
+	return nil
+}
 
-	if slot.BookedDate != nil {
-		return fmt.Errorf("slot is already booked for date: %s, position: %d", t.Date, t.Position)
+func (t *Transaction) AfterDelete(tx *gorm.DB) (err error) {
+	var slot Slot
+	if t.Date == nil {
+		return models.NewError("column 'date' cannot be empty", models.ActionForbidden)
 	}
-	if t.Txnid == "" {
-		t.Txnid = uuid.New().String()
+	if err = tx.Model(&Slot{}).Where(
+		"date = ? AND position = ? AND status = ?",
+		t.Date.Format(time.DateOnly),
+		t.Position,
+		models.SlotStatusHold).
+		Update("status", models.SlotStatusOpen).Error; err != nil {
+		return err
 	}
 	// Set foreign key
 	t.Date = slot.Date

@@ -30,7 +30,7 @@ func (r *RepositoryTestSuite) BeforeTest(suiteName, test string) {
 	logrus.SetLevel(logrus.DebugLevel)
 	logger := logrus.New()
 	var err error
-	r.repository, err = mysql.NewStorage(logger, io.MultiWriter(os.Stdout), "info", conf)
+	r.repository, err = mysql.NewStorage(logger, io.MultiWriter(os.Stdout), "error", conf)
 	assert.Nil(r.T(), err, fmt.Sprintf("MysqlSeedingFailed::%+v", conf))
 }
 
@@ -123,7 +123,7 @@ func (r *RepositoryTestSuite) Test_Search() {
 		PositionStart: models.Int32ToString(*slot.Position),
 		PositionEnd:   models.Int32ToString(*slot.Position),
 	}
-	slotRes, err := r.repository.GetSlotsInRange(getOptions)
+	slotRes, err := r.repository.SearchSlotsInRange(getOptions)
 	assert.Nil(r.T(), err)
 	if err == nil {
 		assert.Equal(r.T(), slotRes[0].Date.Format(time.DateOnly), slot.Date.Format(time.DateOnly), "Expected search result to be equal")
@@ -135,37 +135,9 @@ func (r *RepositoryTestSuite) Test_Search() {
 		StartDate: time.Now(),
 		EndDate:   time.Now(),
 	}
-	slotRes, err = r.repository.GetSlotsInRange(getOptions)
+	slotRes, err = r.repository.SearchSlotsInRange(getOptions)
 	assert.Nil(r.T(), err)
 	assert.Empty(r.T(), slotRes)
-}
-
-func (r *RepositoryTestSuite) Test_SearchWithPrimaryKeyAndStatus() {
-	slotF := SlotFactory{}
-	slots := slotF.WithInstances(5).Build()
-	_, err := r.repository.Create(slots)
-	assert.Nil(r.T(), err, "Expected to create slots")
-	for _, s := range slots {
-		firstSlot, err := r.repository.SearchSlotsByPrimaryKeyAndStatus(*s.Date, *s.Position, *s.Status)
-		assert.Nil(r.T(), err)
-		assert.Equal(r.T(), *s.Status, *firstSlot.Status)
-		assert.Equal(r.T(), *s.Cost, *firstSlot.Cost)
-		assert.Equal(r.T(), s.Date.Format(time.DateOnly), firstSlot.Date.Format(time.DateOnly))
-		assert.Equal(r.T(), *s.Position, *firstSlot.Position)
-	}
-}
-
-func (r *RepositoryTestSuite) Test_UpdateSlotsStatus() {
-	slotF := SlotFactory{}
-	slot := slotF.WithStatus([]string{models.SlotStatusOpen}).WithInstances(1).Build()
-	_, err := r.repository.Create(slot)
-	assert.Nil(r.T(), err, "Expected to create slots")
-	err = r.repository.UpdateSlotsStatus(slot, *slot[0].Status, models.SlotStatusClosed)
-	assert.Nil(r.T(), err)
-	date, position, status := *slot[0].Date, *slot[0].Position, models.SlotStatusClosed
-	firstSlot, err := r.repository.SearchSlotsByPrimaryKeyAndStatus(date, position, status)
-	assert.Nil(r.T(), err)
-	assert.NotNil(r.T(), firstSlot)
 }
 
 func TestRepositorySuite(t *testing.T) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"math/rand"
 	"net/http"
 	"time"
@@ -27,6 +28,13 @@ type AccountingMetadataSlot struct {
 	Cost     float64   `json:"cost"`
 }
 
+type AccountingDebitResponse struct {
+	Txnid    string             `json:"txnid,omitempty"`
+	UID      string             `json:"uid,omitempty"`
+	Created  time.Time          `json:"created,omitempty"`
+	Metadata AccountingMetadata `json:"metadata,omitempty"`
+}
+
 func main() {
 	router := gin.Default()
 
@@ -46,6 +54,38 @@ func main() {
 
 		// Return "ok" response
 		c.JSON(http.StatusOK, gin.H{"message": "ok"})
+	})
+
+	router.GET("/debit", func(c *gin.Context) {
+		txnid, _ := c.GetQuery("txnid")
+		if txnid == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Query params txnid is required"})
+			return
+		}
+		// Do something with the request data...
+		rand.New(rand.NewSource(time.Now().UnixNano()))
+		// Return "ok" response
+		status := []int{http.StatusOK, http.StatusNotFound}
+		sts := status[rand.Intn(len(status))]
+		if sts == http.StatusNotFound {
+			c.AbortWithStatus(sts)
+			return
+		}
+		data := &AccountingDebitResponse{
+			Txnid:   txnid,
+			UID:     uuid.New().String(),
+			Created: time.Now(),
+			Metadata: AccountingMetadata{
+				Slots: []AccountingMetadataSlot{
+					{
+						Date:     time.Now(),
+						Position: int32(rand.Intn(20)),
+						Cost:     10.2,
+					},
+				},
+			},
+		}
+		c.JSON(sts, data)
 	})
 
 	if err := router.Run(":10002"); err != nil {

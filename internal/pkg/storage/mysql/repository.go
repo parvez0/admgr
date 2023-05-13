@@ -157,7 +157,7 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 	return affectedRows, tx.Commit().Error
 }
 
-func (s *Storage) GetSlotsInRange(options *GetOptions) ([]*Slot, error) {
+func (s *Storage) SearchSlotsInRange(options *GetOptions) ([]*Slot, error) {
 	var slots []*Slot
 	query := s.db.Model(&Slot{}).
 		Where("date BETWEEN ? AND ?", options.StartDate.Format(time.DateOnly), options.EndDate.Format(time.DateOnly))
@@ -172,28 +172,29 @@ func (s *Storage) GetSlotsInRange(options *GetOptions) ([]*Slot, error) {
 	}
 	res := query.Find(&slots)
 	if res.Error != nil {
-		s.logger.Errorf("GetSlotsInRange::[%+v]", options)
+		s.logger.Errorf("SearchSlotsInRange::[%+v]", options)
 		return nil, models.NewError(
-			"GetSlotsInRangeFailed:: Internal server error",
+			"GetSlotsFailed:: Internal server error",
 			models.InternalProcessingError,
 		)
 	}
-	s.logger.Infof("Search:: Total %d records found", res.RowsAffected)
+	s.logger.Infof("SearchSlotsInRange:: Total %d records found", res.RowsAffected)
 	return slots, nil
 }
 
-func (s *Storage) SearchSlotsByPrimaryKeyAndStatus(date time.Time, position int32, status string) (*Slot, error) {
-	var slot Slot
-	if err := s.db.Model(&Slot{}).
-		Where("date = ? AND position = ? AND status = ?", date.Format(time.DateOnly), position, status).
-		First(&slot).Error; err != nil {
-		s.logger.Errorf("SearchByPrimaryKeyFailed:: [Data: {date: %v, position: %d, status: %s}, Error:]", date, position, status)
+func (s *Storage) SearchSlotsByStatus(options *GetOptions) ([]*Slot, error) {
+	var slots []*Slot
+	db := s.db.Model(&Slot{}).Where("status = ?", options.Status)
+	if options.PreloadTransaction {
+		db = db.Preload("Transaction")
+	}
+	if err := db.Find(&slots).Error; err != nil {
 		return nil, models.NewError(
-			"FailedToSearchSlot:: Internal server error",
+			fmt.Sprintf("SearchSlotsByStatus: [Status: %s, Error: %s]", options.Status, err),
 			models.InternalProcessingError,
 		)
 	}
-	return &slot, nil
+	return slots, nil
 }
 
 func (s *Storage) UpdateSlotsStatus(slots []*Slot, lastStatus, newStatus string) error {

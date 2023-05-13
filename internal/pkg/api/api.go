@@ -60,3 +60,10 @@ type AccountingMetadataSlot struct {
 	Position int32     `json:"position"`
 	Cost     float64   `json:"cost"`
 }
+
+type AccountingDebitResponse struct {
+	Txnid    string             `json:"txnid,omitempty"`
+	UID      string             `json:"uid,omitempty"`
+	Created  time.Time          `json:"created,omitempty"`
+	Metadata AccountingMetadata `json:"metadata,omitempty"`
+}
