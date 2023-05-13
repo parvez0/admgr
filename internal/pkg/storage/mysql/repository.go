@@ -236,3 +236,7 @@ func (s *Storage) Delete(records interface{}) (int, error) {
 func (s *Storage) DropAll() error {
 	return s.db.Migrator().DropTable(&Transaction{}, &Slot{})
 }
+
+func (s *Storage) Initialize() error {
+	return s.db.AutoMigrate(&Transaction{}, &Slot{})
+}

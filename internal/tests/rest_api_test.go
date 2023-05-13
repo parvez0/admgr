@@ -136,21 +136,21 @@ func (r *HttRestTestSuite) TestCreateSlot() {
 		r.T().Run(test.Description, func(t *testing.T) {
 			// Perform any necessary setup
 			if test.Before != nil {
-				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil)
+				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.Before.TestRequiredParams)
 				checkResponse(t, res, test.Before.TestRequiredParams)
 			}
 
 			// Send the test request
-			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil)
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil, false)
 			res, err := r.client.Do(req)
 			assertError(t, err, test.TestRequiredParams)
 			checkResponse(t, res, test.TestRequiredParams)
 
 			// Perform any necessary cleanup
 			if test.After != nil {
-				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil)
+				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.After.TestRequiredParams)
 				checkResponse(t, res, test.After.TestRequiredParams)
@@ -164,21 +164,21 @@ func (r *HttRestTestSuite) TestUpdateSlot() {
 		r.T().Run(test.Description, func(t *testing.T) {
 			// Perform any necessary setup
 			if test.Before != nil {
-				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil)
+				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.Before.TestRequiredParams)
 				checkResponse(t, res, test.Before.TestRequiredParams)
 			}
 
 			// Send the test request
-			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil)
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil, false)
 			res, err := r.client.Do(req)
 			assertError(t, err, test.TestRequiredParams)
 			checkResponse(t, res, test.TestRequiredParams)
 
 			// Perform any necessary cleanup
 			if test.After != nil {
-				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil)
+				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.After.TestRequiredParams)
 				checkResponse(t, res, test.After.TestRequiredParams)
@@ -192,21 +192,21 @@ func (r *HttRestTestSuite) TestSearchSlot() {
 		r.T().Run(test.Description, func(t *testing.T) {
 			// Perform any necessary setup
 			if test.Before != nil {
-				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil)
+				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.Before.TestRequiredParams)
 				checkResponse(t, res, test.Before.TestRequiredParams)
 			}
 
 			// Send the test request
-			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, nil, test.Query)
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, nil, test.Query, false)
 			res, err := r.client.Do(req)
 			assertError(t, err, test.TestRequiredParams)
 			checkResponse(t, res, test.TestRequiredParams)
 
 			// Perform any necessary cleanup
 			if test.After != nil {
-				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil)
+				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil, false)
 				res, err := r.client.Do(req)
 				assertError(t, err, test.After.TestRequiredParams)
 				checkResponse(t, res, test.After.TestRequiredParams)
@@ -219,26 +219,28 @@ func (r *HttRestTestSuite) TestReserveSlot() {
 	for _, test := range r.template.Reserve {
 		r.T().Run(test.Description, func(t *testing.T) {
 			// Perform any necessary setup
-			if test.Before != nil {
-				req := createRequest(join(r.url, test.Before.TestRequiredParams.Url), test.Before.TestRequiredParams.Method, test.Before.Request, nil)
+			for _, beforeTest := range test.Before {
+				req := createRequest(join(r.url, beforeTest.TestRequiredParams.Url), beforeTest.TestRequiredParams.Method, beforeTest.Request, nil, true)
 				res, err := r.client.Do(req)
-				assertError(t, err, test.Before.TestRequiredParams)
-				checkResponse(t, res, test.Before.TestRequiredParams)
+				assertError(t, err, beforeTest.TestRequiredParams)
+				checkResponse(t, res, beforeTest.TestRequiredParams)
 			}
 
 			// Send the test request
-			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil)
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil, false)
 			res, err := r.client.Do(req)
 			assertError(t, err, test.TestRequiredParams)
 			checkResponse(t, res, test.TestRequiredParams)
 
 			// Perform any necessary cleanup
-			if test.After != nil {
-				req := createRequest(join(r.url, test.After.TestRequiredParams.Url), test.After.TestRequiredParams.Method, test.After.Request, nil)
+			for _, afterTest := range test.After {
+				req := createRequest(join(r.url, afterTest.TestRequiredParams.Url), afterTest.TestRequiredParams.Method, afterTest.Request, nil, false)
 				res, err := r.client.Do(req)
-				assertError(t, err, test.After.TestRequiredParams)
-				checkResponse(t, res, test.After.TestRequiredParams)
+				assertError(t, err, afterTest.TestRequiredParams)
+				checkResponse(t, res, afterTest.TestRequiredParams)
 			}
+			r.repository.DropAll()
+			r.repository.Initialize()
 		})
 	}
 }
@@ -251,7 +253,12 @@ func assertError(t *testing.T, err error, test TestRequiredParams) {
 	}
 }
 
-func createRequest(url string, method string, requests interface{}, query interface{}) *http.Request {
+func createRequest(url string, method string, requests interface{}, query interface{}, decode bool) *http.Request {
+	if decode {
+		buf, _ := json.Marshal(requests)
+		bufStr := parseDateFromTemplate(string(buf))
+		json.Unmarshal([]byte(bufStr), &requests)
+	}
 	switch strings.ToUpper(method) {
 	case http.MethodGet:
 		req, _ := http.NewRequest(method, url, nil)
@@ -308,20 +315,22 @@ func join(url, path string) string {
 
 func parseDateFromTemplate(b string) string {
 	re := regexp.MustCompile(`now([+-]\d+)?`)
-	matches := re.FindAllStringSubmatch(b, 1)
-	if len(matches) == 0 {
-		return b
-	}
-	dateString := matches[0][0]
-	switch {
-	case dateString == "now":
-		return strings.Replace(b, "now", time.Now().Format(time.DateOnly), -1)
-	case strings.HasPrefix(dateString, "now+"):
-		strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
-		return strings.Replace(b, dateString, time.Now().AddDate(0, 0, strNum).Format(time.DateOnly), -1)
-	case strings.HasPrefix(dateString, "now-"):
-		strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
-		return strings.Replace(b, dateString, time.Now().AddDate(0, 0, -1*strNum).Format(time.DateOnly), -1)
+	for {
+		matches := re.FindAllStringSubmatch(b, 1)
+		if len(matches) == 0 {
+			return b
+		}
+		dateString := matches[0][0]
+		switch {
+		case dateString == "now":
+			b = strings.Replace(b, "now", time.Now().Format(time.DateOnly), -1)
+		case strings.HasPrefix(dateString, "now+"):
+			strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
+			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, strNum).Format(time.DateOnly), -1)
+		case strings.HasPrefix(dateString, "now-"):
+			strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
+			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, -1*strNum).Format(time.DateOnly), -1)
+		}
 	}
 	return b
 }

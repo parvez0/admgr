@@ -297,8 +297,8 @@ type Search struct {
 
 type Reserve struct {
 	Description        string             `yaml:"description" json:"description"`
-	Before             *Before            `yaml:"before,omitempty" json:"before"`
-	After              *After             `yaml:"after,omitempty" json:"after"`
+	Before             []*ReserveBefore   `yaml:"before,omitempty" json:"before"`
+	After              []*After           `yaml:"after,omitempty" json:"after"`
 	Request            []ReserveRequest   `yaml:"request" json:"request"`
 	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
 }
@@ -319,6 +319,11 @@ type Before struct {
 	Request            []CreateRequest    `yaml:"request" json:"request"`
 	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
 }
+type ReserveBefore struct {
+	Request            []interface{}      `yaml:"request" json:"request"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+
 type DeleteRequest struct {
 	StartDate Date  `yaml:"start_date,omitempty" json:"start_date,omitempty"`
 	EndDate   Date  `yaml:"end_date,omitempty" json:"end_date,omitempty"`

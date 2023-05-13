@@ -45,7 +45,7 @@ func createSlotHandler(c *gin.Context) {
 	var requestBody []*api.CreateSlotRequestBody
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "ParsingError: Invalid request body provided"})
 		return
 	}
 	for i, slotRequest := range requestBody {
@@ -97,7 +97,7 @@ func updateSlotHandler(c *gin.Context) {
 	var requestBody []*api.CreateSlotRequestBody
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "ParsingError: Invalid request body provided"})
 		return
 	}
 	for i, req := range requestBody {
@@ -119,7 +119,7 @@ func deleteSlotHandler(c *gin.Context) {
 	var requestBody []*api.DeleteSlotRequestBody
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "ParsingError: Invalid request body provided"})
 		return
 	}
 	for i, req := range requestBody {
@@ -141,7 +141,7 @@ func reserveSlotHandler(c *gin.Context) {
 	var requestBody []*api.ReserveSlotRequestBody
 	err := json.NewDecoder(c.Request.Body).Decode(&requestBody)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "ParsingError: Invalid request body provided"})
 		return
 	}
 	for i, slotRequest := range requestBody {
