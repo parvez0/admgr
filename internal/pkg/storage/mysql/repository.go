@@ -45,7 +45,7 @@ func NewStorage(_log *logrus.Logger, writer io.Writer, logLevel string, dbConf *
 		log.New(writer, "", log.LstdFlags),
 		logger.Config{
 			SlowThreshold:             200,
-			LogLevel:                  logger.Info,
+			LogLevel:                  getLogLevel(logLevel),
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  true,
 		},
@@ -86,6 +86,18 @@ func NewStorage(_log *logrus.Logger, writer io.Writer, logLevel string, dbConf *
 	s.logger.Infof("DB Seeding succeded")
 	s.db = db
 	return s, nil
+}
+
+func getLogLevel(lvl string) logger.LogLevel {
+	switch strings.ToLower(lvl) {
+	case "info":
+		return logger.Info
+	case "error":
+		return logger.Error
+	case "warn":
+		return logger.Warn
+	}
+	return logger.Info
 }
 
 func (s *Storage) Create(records interface{}) (int, error) {

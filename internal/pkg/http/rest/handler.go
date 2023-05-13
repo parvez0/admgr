@@ -32,8 +32,13 @@ func Handler(log *logrus.Logger, s core.Service) (*gin.Engine, error) {
 	r.PATCH("/adslots", updateSlotHandler)
 	r.DELETE("/adslots", deleteSlotHandler)
 	r.PATCH("/adslots/reserve", reserveSlotHandler)
+	r.GET("/health-check", healthCheck)
 
 	return r, nil
+}
+
+func healthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, nil)
 }
 
 func createSlotHandler(c *gin.Context) {

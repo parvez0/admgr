@@ -54,8 +54,9 @@ func ValidateWithTags(s interface{}, prefix interface{}) error {
 					return fmt.Errorf("%v%s field is required", prefix, field.Name)
 				}
 			}
-			date := time.Time(value.Interface().(models.JSONDate))
-			if date.Before(time.Now()) {
+			date, _ := time.Parse(time.DateOnly, time.Time(value.Interface().(models.JSONDate)).Format(time.DateOnly))
+			now, _ := time.Parse(time.DateOnly, time.Now().Format(time.DateOnly))
+			if date.Before(now) {
 				return fmt.Errorf("%s field must be date after current date", date.Format(time.DateOnly))
 			}
 		}

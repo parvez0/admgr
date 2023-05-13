@@ -37,8 +37,8 @@ paths:
               $ref: '#/components/schemas/CreateSlot'
         required: true
       responses:
-        '200':
-          description: Successful operation
+        '201':
+          description: Successfully created
         '400':
           description: Required parameters not provided
           content:
@@ -47,6 +47,12 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '409':
           description: Conflict with another slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -113,11 +119,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
     patch:
       tags:
         - adslots
       summary: Update an existing slot
-      description: Update an existing slot by id
+      description: Update an existing slot by Date and Position
       operationId: updateSlot
       requestBody:
         description: Update an existent slot
@@ -137,6 +149,46 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '403':
           description: Forbidden or not authorized to update given slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      tags:
+        - adslots
+      summary: Delete an exitsting slot
+      description: Delete multiple slots by Date and Position
+      operationId: deleteSlot
+      requestBody:
+        description: Update an existent slot
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteSlot'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: Forbidden or not authorized to update given slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -179,6 +231,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
 components:
   schemas:
     CreateSlot:
@@ -201,10 +259,23 @@ components:
           cost:
             type: integer
             format: float
-          status:
+    DeleteSlot:
+      type: array
+      items:
+        properties:
+          start_date:
             type: string
-            enum: [open, closed, hold, booked]
-            default: open
+            format: date
+          end_date:
+            type: string
+            format: date
+          position:
+            type: array
+            items:
+              type: integer
+            uniqueItems: true
+            default: [1,4]
+            description: Defines start and end posstion 1..N
     Slot:
       type: object
       properties:
@@ -265,7 +336,4 @@ components:
         error:
           type: string
 
-        # For GET: so for all the dates which I doesn't have a open slot for the queried range in the db, it should returned closed
-        # For patch: create date and position as primary key, we can use the same request body as post
-        # Position slots will start from 1 to N, reject if slots from 1 are not open and position is greater than 1
 
