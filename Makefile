@@ -10,6 +10,7 @@ MARIADB_DB_NAME = test_db
 CONTAINER_NAME = "test_mariadb"
 SEED_FILE_PATH = ${HOME}/.admgr/mysql
 COVERAGE_REPORT_DIR = ./coverage
+DOCKER_TAG=$(shell date +'%Y-%m-%d')
 
 default: build
 
@@ -18,15 +19,19 @@ build: pre-checks
 	@go get ./...
 	@echo "Pulling Mariadb docker image and starting mariadb server on port ${MARIADB_PORT}"
 	@docker pull ${MARIADB_IMAGE}
-	@docker run --rm \
+	@docker network create admgr 2> /dev/null || true
+	@docker run --rm --network admgr \
 		--name ${CONTAINER_NAME} \
 		-e MYSQL_ROOT_PASSWORD=${MARIADB_PASSWORD} \
 		-e MARIADB_DATABASE=${MARIADB_DB_NAME} \
 		-p 3306:${MARIADB_PORT} -d ${MARIADB_IMAGE} 2> /dev/null || true
-	@docker exec -it \
+	docker exec -i \
 		${CONTAINER_NAME} \
-		mysql -u root -p${MARIADB_PASSWORD} \
+		mysql -uroot -p${MARIADB_PASSWORD} \
 		-e "CREATE SCHEMA IF NOT EXISTS ${MARIADB_DB_NAME};"
+
+docker-build:
+	@docker build -t kiran/admgr:${DOCKER_TAG} -f ./build/package/Dockerfile .
 
 pre-checks:
 	@echo "Checking if Docker is installed..."
@@ -62,4 +67,5 @@ coverage: build ensure-output-dir
 
 clean:
 	@echo "Cleaning all resources"
-	docker rm -f ${CONTAINER_NAME} 2> /dev/null || true
+	@docker rm -f ${CONTAINER_NAME} 2> /dev/null || true
+	@docker network rm admgr 2> /dev/null || true
