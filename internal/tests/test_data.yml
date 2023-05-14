@@ -303,7 +303,6 @@ search:
         empty: false
         output:
           - date: now
-            status: open
             slots:
               - position: 1
                 cost: 10.4
@@ -361,7 +360,6 @@ search:
         empty: false
         output:
           - date: now
-            status: open
             slots:
               - position: 4
                 cost: 10.4

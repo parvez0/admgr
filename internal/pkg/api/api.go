@@ -24,9 +24,8 @@ type ReserveSlotRequestBody struct {
 }
 
 type GetSlotsResponse struct {
-	Date   string          `json:"date"`
-	Status string          `json:"status"`
-	Slots  []*SlotResponse `json:"slots,omitempty"`
+	Date  string          `json:"date"`
+	Slots []*SlotResponse `json:"slots,omitempty"`
 }
 
 type SlotResponse struct {
@@ -61,7 +60,7 @@ type AccountingMetadataSlot struct {
 	Cost     float64   `json:"cost"`
 }
 
-type AccountingDebitResponse struct {
+type AccountingStatusResponse struct {
 	Txnid    string             `json:"txnid,omitempty"`
 	UID      string             `json:"uid,omitempty"`
 	Created  time.Time          `json:"created,omitempty"`

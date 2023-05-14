@@ -50,6 +50,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+  /status:
+    post:
+      tags:
+        - transaction
+      summary: Get transactions by id
+      operationId: getTransaction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusRequestBody'
+
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Required parameters not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: Conflict with another slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
 
 components:
   schemas:
@@ -97,6 +129,31 @@ components:
         - date: 05-05-2023
           position: 3
           cost: 1
+    TransactionResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          txnid:
+            type: string
+            format: uuid
+          uid:
+            type: string
+            format: uuid
+          created:
+            type: string
+            format: date-time
+          metadata:
+            type: object
+            properties:
+              slots:
+                $ref: '#/components/schemas/Slot'
+    StatusRequestBody:
+      type: array
+      items:
+        type: string
+        format: uuid
+
     ApiResponse:
       type: object
       properties:

@@ -28,12 +28,14 @@ type AccountingMetadataSlot struct {
 	Cost     float64   `json:"cost"`
 }
 
-type AccountingDebitResponse struct {
+type AccountingStatusResponse struct {
 	Txnid    string             `json:"txnid,omitempty"`
 	UID      string             `json:"uid,omitempty"`
 	Created  time.Time          `json:"created,omitempty"`
 	Metadata AccountingMetadata `json:"metadata,omitempty"`
 }
+
+type AccountingStatusRequest []string
 
 func main() {
 	router := gin.Default()
@@ -44,48 +46,52 @@ func main() {
 		// Bind request body to struct
 		if err := c.BindJSON(&requestBody); err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
-			fmt.Println(requestBody)
 			rand.New(rand.NewSource(time.Now().UnixNano()))
 			time.Sleep(time.Duration(rand.Intn(10)) * time.Second)
 			return
 		}
-
+		fmt.Println(requestBody)
 		// Do something with the request data...
 
 		// Return "ok" response
 		c.JSON(http.StatusOK, gin.H{"message": "ok"})
 	})
 
-	router.GET("/debit", func(c *gin.Context) {
-		txnid, _ := c.GetQuery("txnid")
-		if txnid == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Query params txnid is required"})
+	router.POST("/status", func(c *gin.Context) {
+		var requestBody AccountingStatusRequest
+		if err := c.BindJSON(&requestBody); err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Failed to parse request body"})
 			return
 		}
+		fmt.Println(requestBody)
 		// Do something with the request data...
 		rand.New(rand.NewSource(time.Now().UnixNano()))
-		// Return "ok" response
 		status := []int{http.StatusOK, http.StatusNotFound}
-		sts := status[rand.Intn(len(status))]
-		if sts == http.StatusNotFound {
-			c.AbortWithStatus(sts)
-			return
-		}
-		data := &AccountingDebitResponse{
-			Txnid:   txnid,
-			UID:     uuid.New().String(),
-			Created: time.Now(),
-			Metadata: AccountingMetadata{
-				Slots: []AccountingMetadataSlot{
-					{
-						Date:     time.Now(),
-						Position: int32(rand.Intn(20)),
-						Cost:     10.2,
+		var res []*AccountingStatusResponse
+		for _, req := range requestBody {
+			// Return "ok" response
+			sts := status[rand.Intn(len(status))]
+			if sts != http.StatusOK {
+				continue
+			}
+			fmt.Println("ID: ", res)
+			data := &AccountingStatusResponse{
+				Txnid:   req,
+				UID:     uuid.New().String(),
+				Created: time.Now(),
+				Metadata: AccountingMetadata{
+					Slots: []AccountingMetadataSlot{
+						{
+							Date:     time.Now(),
+							Position: int32(rand.Intn(20)),
+							Cost:     10.2,
+						},
 					},
 				},
-			},
+			}
+			res = append(res, data)
 		}
-		c.JSON(sts, data)
+		c.JSON(http.StatusOK, res)
 	})
 
 	if err := router.Run(":10002"); err != nil {

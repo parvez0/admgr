@@ -16,7 +16,7 @@ const ContentTypeJSON = "application/json"
 
 type AccountingService interface {
 	Debit(slots []*mysql.Slot, uid, txnid string) error
-	Status(txnid string) (*api.AccountingDebitResponse, error)
+	Status(txnids []string) ([]*api.AccountingStatusResponse, error)
 }
 
 type accountingService struct {
@@ -26,17 +26,16 @@ type accountingService struct {
 	restClient *http.Client
 }
 
-func (a accountingService) Status(txnid string) (*api.AccountingDebitResponse, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/debit", a.url), nil)
+func (a accountingService) Status(txnids []string) ([]*api.AccountingStatusResponse, error) {
+
+	reqBody, _ := json.Marshal(txnids)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/status", a.url), bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, models.NewError(
 			fmt.Sprintf("RestRequestFormation failed %s", err.Error()),
 			models.DecodeFailureError,
 		)
 	}
-	q := req.URL.Query()
-	q.Add("txnid", txnid)
-	req.URL.RawQuery = q.Encode()
 	a.log.Debugf("AccountingHandler: %s %s", req.Method, req.URL.String())
 	res, err := a.restClient.Do(req)
 	if err != nil || res.StatusCode != http.StatusOK {
@@ -50,9 +49,9 @@ func (a accountingService) Status(txnid string) (*api.AccountingDebitResponse, e
 			models.DependentServiceRequestFailed,
 		)
 	}
-	var debitResponse api.AccountingDebitResponse
-	json.NewDecoder(res.Body).Decode(&debitResponse)
-	return &debitResponse, nil
+	var statusResponse []*api.AccountingStatusResponse
+	json.NewDecoder(res.Body).Decode(&statusResponse)
+	return statusResponse, nil
 }
 
 func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {
