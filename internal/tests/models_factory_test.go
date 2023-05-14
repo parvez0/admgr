@@ -300,6 +300,7 @@ type Reserve struct {
 	Before             []*ReserveBefore   `yaml:"before,omitempty" json:"before"`
 	After              []*After           `yaml:"after,omitempty" json:"after"`
 	Request            []ReserveRequest   `yaml:"request" json:"request"`
+	Query              *Query             `yaml:"query" json:"query"`
 	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
 }
 

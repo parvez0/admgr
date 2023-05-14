@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -227,7 +228,7 @@ func (r *HttRestTestSuite) TestReserveSlot() {
 			}
 
 			// Send the test request
-			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, nil, false)
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, test.Query, false)
 			res, err := r.client.Do(req)
 			assertError(t, err, test.TestRequiredParams)
 			checkResponse(t, res, test.TestRequiredParams)
@@ -292,20 +293,36 @@ func checkResponse(t *testing.T, rr *http.Response, test TestRequiredParams) {
 	}
 	if status := rr.StatusCode; status != test.ExpectedStatus {
 		t.Errorf("ExpectedStatusCode: %v, Got %v : Error: %+v",
-			test.ExpectedStatus, status, respBody(rr.Body))
+			test.ExpectedStatus, status, readIo(rr.Body))
 	}
 
 	if test.ExpectedOutput.Empty || test.ExpectedOutput.Output == nil {
 		return
 	}
 	body, _ := json.Marshal(test.ExpectedOutput.Output)
-	resBody := parseDateFromTemplate(string(body))
-	require.JSONEq(t, resBody, respBody(rr.Body))
+	expectedResponseOutput := parseDateFromTemplate(string(body))
+	require.JSONEq(t, expectedResponseOutput, readIo(rr.Body))
 }
 
-func respBody(body io.ReadCloser) string {
+func readIo(body io.ReadCloser) string {
 	//Check the response body
 	tmpBytes, _ := io.ReadAll(body)
+	var tmpBody []map[string]interface{}
+	err := json.Unmarshal(tmpBytes, &tmpBody)
+	if err == nil && len(tmpBody) > 0 {
+		if _, e := tmpBody[0]["date"]; !e {
+			return string(tmpBytes)
+		}
+		sort.Slice(tmpBody, func(i, j int) bool {
+			x, _ := time.Parse(time.DateOnly, tmpBody[i]["date"].(string))
+			y, _ := time.Parse(time.DateOnly, tmpBody[j]["date"].(string))
+			if x.Before(y) {
+				return true
+			}
+			return false
+		})
+		tmpBytes, _ = json.Marshal(tmpBody)
+	}
 	return string(tmpBytes)
 }
 
@@ -322,14 +339,14 @@ func parseDateFromTemplate(b string) string {
 		}
 		dateString := matches[0][0]
 		switch {
-		case dateString == "now":
-			b = strings.Replace(b, "now", time.Now().Format(time.DateOnly), -1)
 		case strings.HasPrefix(dateString, "now+"):
 			strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
-			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, strNum).Format(time.DateOnly), -1)
+			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, strNum).Format(time.DateOnly), 1)
 		case strings.HasPrefix(dateString, "now-"):
 			strNum, _ := strconv.Atoi(strings.Split(dateString, "+")[1])
-			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, -1*strNum).Format(time.DateOnly), -1)
+			b = strings.Replace(b, dateString, time.Now().AddDate(0, 0, -1*strNum).Format(time.DateOnly), 1)
+		default:
+			b = strings.Replace(b, "now", time.Now().Format(time.DateOnly), 1)
 		}
 	}
 	return b

@@ -586,3 +586,75 @@ reserve:
       expected_error: false
       expected_output:
         empty: true
+  - description: Test reserve slots output by searching api
+    before:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+      - request:
+          - date: now
+            position: 2
+          - date: now+1
+            position: 3
+        params:
+          url: adslots/reserve?uid=asdf-feaea-asdf-fea
+          method: PATCH
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request: null
+    query:
+      start_date: now
+      end_date: now+1
+    params:
+      url: adslots
+      method: GET
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: false
+        output:
+          - date: now
+            slots:
+              - position: 1
+                cost: 10.4
+                status: open
+              - position: 2
+                cost: 10.4
+                status: booked
+                booked_by: asdf-feaea-asdf-fea
+                booked_date: now
+              - position: 3
+                cost: 10.4
+                status: open
+              - position: 4
+                cost: 10.4
+                status: open
+          - date: now+1
+            slots:
+              - position: 1
+                cost: 10.4
+                status: open
+              - position: 2
+                cost: 10.4
+                status: open
+              - position: 3
+                cost: 10.4
+                status: booked
+                booked_by: asdf-feaea-asdf-fea
+                booked_date: now
+              - position: 4
+                cost: 10.4
+                status: open
