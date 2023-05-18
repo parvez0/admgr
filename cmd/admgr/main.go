@@ -67,7 +67,7 @@ func main() {
 	accountService = core.NewAccountingService(cnf.Accounting.Host, cnf.Accounting.Port, cnf.InstanceId, logger)
 	service = core.NewService(s, accountService, logger)
 
-	r, _ := rest.Handler(logger, service)
+	r, _ := rest.Handler(logger, service, writer)
 
 	log.Fatal(r.Run(addr))
 }

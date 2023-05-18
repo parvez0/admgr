@@ -72,7 +72,7 @@ func (r *HttRestTestSuite) BeforeTest(suiteName, test string) {
 	accountService := core.NewAccountingService(account.Host, account.Port, "admgr", logger)
 	service := core.NewService(s, accountService, logger)
 
-	router, _ := rest.Handler(logger, service)
+	router, _ := rest.Handler(logger, service, os.Stdout)
 	r.repository = s
 	r.url = admgr.Url()
 

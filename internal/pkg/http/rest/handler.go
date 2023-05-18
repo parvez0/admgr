@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kiran-anand14/admgr/internal/pkg/api"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -20,12 +21,12 @@ var (
 	service core.Service
 )
 
-func Handler(log *logrus.Logger, s core.Service) (*gin.Engine, error) {
+func Handler(log *logrus.Logger, s core.Service, writer io.Writer) (*gin.Engine, error) {
 	logger = log
 	service = s
 
 	r := gin.Default()
-
+	gin.DefaultWriter = writer
 	// Add all HTTP routes here.
 	r.POST("/adslots", createSlotHandler)
 	r.GET("/adslots", getSlotHandler)

@@ -42,8 +42,18 @@ func NewService(r Repository, a AccountingService, log *logrus.Logger) Service {
 		rep: r,
 		acc: a,
 	}
-	if err := s.revertFailedReservations(); err != nil {
-		s.log.Fatalf("CoreServiceInitialization: Failed to revert reservations [Error: %s]", err)
+	retry := 1
+	for {
+		if err := s.revertFailedReservations(); err != nil {
+			s.log.Errorf("CoreServiceInitialization: Failed to revert reservations [Error: %s, Retrying: %d]", err, retry)
+			if retry > 10 {
+				panic("ReachedMaximumRetires: Failed CoreServiceInitialization")
+			}
+			time.Sleep(time.Second * 10)
+			retry++
+			continue
+		}
+		break
 	}
 	return &s
 }
@@ -98,7 +108,7 @@ func (s *service) revertFailedReservations() error {
 	s.log.Infof("Transaction was successful. Changing status to booked for %s", slotIdFromSlot(slotsToUpdate))
 	updateCount, err := s.rep.UpdateSlots(slotsToUpdate)
 	if err != nil {
-		s.log.Fatalf("Reverting changes failed [Error: %s]", err.Error())
+		s.log.Errorf("Reverting changes failed [Error: %s]", err.Error())
 		return err
 	}
 	s.log.Infof("Total %d slots status updated", updateCount)
