@@ -14,12 +14,13 @@ import (
 // it defines information about server details and
 // postgres db details including the credentials
 type Config struct {
-	InstanceId string            `json:"instance_id" mapstructure:"instance_id"`
-	Host       string            `json:"host" mapstructure:"host"`
-	Port       string            `json:"port" mapstructure:"port"`
-	Redis      RedisConf         `json:"redis" mapstructure:"redis"`
-	DB         DBConf            `json:"db" mapstructure:"db"`
-	AcLogger   AsyncommLoggerCnf `json:"asyncomm_logger" mapstructure:"asyncomm_logger"`
+	InstanceId string                `json:"instance_id" mapstructure:"instance_id"`
+	Host       string                `json:"host" mapstructure:"host"`
+	Port       string                `json:"port" mapstructure:"port"`
+	Redis      RedisConf             `json:"redis" mapstructure:"redis"`
+	DB         DBConf                `json:"db" mapstructure:"db"`
+	Accounting AccountingServiceConf `json:"accounting" mapstructure:"accounting"`
+	AcLogger   AsyncommLoggerCnf     `json:"asyncomm_logger" mapstructure:"asyncomm_logger"`
 	Logger     struct {
 		Level          string `json:"level" mapstructure:"level"`
 		FullTimestamp  bool   `json:"full_timestamp" mapstructure:"full_timestamp"`
@@ -52,6 +53,11 @@ type DBConf struct {
 	Password string `json:"password" mapstructure:"password"`
 }
 
+type AccountingServiceConf struct {
+	Host string `json:"host" mapstructure:"host"`
+	Port string `json:"port" mapstructure:"port"`
+}
+
 type AsyncommLoggerCnf struct {
 	Level          string `json:"level" mapstructure:"level"`
 	OutputFilePath string `json:"output_file_path" mapstructure:"output_file_path"`
@@ -71,7 +77,7 @@ func InitializeConfig() *Config {
 	viper.SetConfigName("config")
 
 	// set the path to look for the configurations file
-	//viper.AddConfigPath(".")
+	viper.AddConfigPath(".")
 	viper.AddConfigPath("/etc/admgr")
 
 	// enable VIPER to read Environment Variables
@@ -89,6 +95,8 @@ func InitializeConfig() *Config {
 	viper.SetDefault("port", "10001")
 	viper.SetDefault("redis.host", "localhost")
 	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("accounting.host", "http://localhost")
+	viper.SetDefault("accounting.port", "10002")
 	viper.SetDefault("redis.username", "")
 	viper.SetDefault("redis.password", "")
 	viper.SetDefault("logger.level", "info")

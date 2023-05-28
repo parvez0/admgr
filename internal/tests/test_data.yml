@@ -1,0 +1,660 @@
+---
+create:
+  - description: Test create new slot
+    request:
+      - start_date: now
+        end_date: now+2
+        position:
+          - 1
+          - 4
+        cost: 10.4
+      - start_date: now+5
+        end_date: now+7
+        position:
+          - 1
+          - 4
+        cost: 10.4
+    params:
+      url: adslots
+      method: POST
+      expected_status: 201
+      expected_error: false
+      expected_output:
+        empty: true
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: true
+  - description: Test conflict duplicate slot
+    before:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+          cost: 10.4
+      params:
+        url: adslots
+        method: POST
+        expected_status: 201
+        expected_error: false
+        expected_output:
+          empty: true
+    request:
+      - start_date: now
+        end_date: now+2
+        position:
+          - 1
+          - 4
+        cost: 10.4
+    params:
+      url: adslots
+      method: POST
+      expected_status: 409
+      expected_error: false
+      expected_output:
+        empty: false
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: false
+  - description: Test request body missing start_date field
+    request:
+      - end_date: now
+        position:
+          - 1
+          - 4
+        cost: 10.5
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body missing end_date field
+    request:
+      - start_date: now
+        position:
+          - 1
+          - 4
+        cost: 10.5
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body missing position fields
+    request:
+      - start_date: now
+        end_date: now+2
+        position:
+          - 1
+        cost: 10.5
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body missing cost field
+    request:
+      - start_date: now
+        end_date: now+0
+        position:
+          - 1
+          - 4
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body invalid date fields
+    request:
+      - end_date: now
+        start_date: now+1
+        position:
+          - 1
+          - 4
+        cost: 10.5
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body invalid position fields
+    request:
+      - end_date: now+0
+        start_date: now
+        position:
+          - 8
+          - 9
+        cost: 10.5
+    params:
+      url: adslots
+      method: POST
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+        output: null
+update:
+  - description: Test update cost
+    before:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+          cost: 10.4
+        - start_date: now+5
+          end_date: now+7
+          position:
+            - 1
+            - 4
+          cost: 10.4
+      params:
+        url: adslots
+        method: POST
+        expected_status: 201
+        expected_error: false
+        expected_output:
+          empty: true
+    request:
+      - start_date: now
+        end_date: now+2
+        position:
+          - 1
+          - 4
+        cost: 15
+      - start_date: now+5
+        end_date: now+5
+        position:
+          - 1
+          - 1
+        cost: 16.4
+    params:
+      url: adslots
+      method: PATCH
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: true
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+        - start_date: now+5
+          end_date: now+7
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: true
+  - description: Test request body invalid date fields
+    request:
+      - end_date: now
+        start_date: now+1
+        position:
+          - 1
+          - 4
+        cost: 10.5
+    params:
+      url: adslots
+      method: PATCH
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+  - description: Test request body invalid position fields
+    request:
+      - end_date: now+0
+        start_date: now
+        position:
+          - 8
+          - 9
+        cost: 10.5
+    params:
+      url: adslots
+      method: PATCH
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+        output: null
+search:
+  - description: Search for slots
+    before:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+          cost: 10.4
+      params:
+        url: adslots
+        method: POST
+        expected_status: 201
+        expected_error: false
+        expected_output:
+          empty: true
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: true
+    request: null
+    query:
+      start_date: now
+      end_date: now
+    params:
+      url: adslots
+      method: GET
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: false
+        output:
+          - date: now
+            slots:
+              - position: 1
+                cost: 10.4
+                status: open
+              - position: 2
+                cost: 10.4
+                status: open
+              - position: 3
+                cost: 10.4
+                status: open
+              - position: 4
+                cost: 10.4
+                status: open
+  - description: Search for slots with position
+    before:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+          cost: 10.4
+      params:
+        url: adslots
+        method: POST
+        expected_status: 201
+        expected_error: false
+        expected_output:
+          empty: true
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: true
+    request: null
+    query:
+      start_date: now
+      end_date: now
+      position: 4
+    params:
+      url: adslots
+      method: GET
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: false
+        output:
+          - date: now
+            slots:
+              - position: 4
+                cost: 10.4
+                status: open
+  - description: Search for slots bad request
+    before:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+          cost: 10.4
+      params:
+        url: adslots
+        method: POST
+        expected_status: 201
+        expected_error: false
+        expected_output:
+          empty: true
+    after:
+      request:
+        - start_date: now
+          end_date: now+2
+          position:
+            - 1
+            - 4
+      params:
+        url: adslots
+        method: DELETE
+        expected_status: 200
+        expected_error: false
+        expected_output:
+          empty: true
+    request: null
+    query:
+      start_date: now
+      end_date: now-1
+    params:
+      url: adslots
+      method: GET
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: false
+reserve:
+  - description: Test reserve slot with date and position
+    before:
+      - request:
+        - start_date: now+5
+          end_date: now+5
+          position:
+            - 1
+            - 4
+          cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+    after:
+      - request:
+          - start_date: now+5
+            end_date: now+5
+            position:
+              - 1
+              - 4
+        params:
+          url: adslots
+          method: DELETE
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - date: now+5
+        position: 2
+      - date: now+5
+        position: 3
+    params:
+      url: adslots/reserve?uid=asdf-feaea-asdf-fea
+      method: PATCH
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: true
+  - description: Test book already reserved slot
+    before:
+      - request:
+          - start_date: now+5
+            end_date: now+5
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+      - request:
+          - date: now+5
+            position: 2
+          - date: now+5
+            position: 3
+        params:
+          url: adslots/reserve?uid=asdf-feaea-asdf-fea
+          method: PATCH
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    after:
+      - request:
+          - start_date: now+5
+            end_date: now+5
+            position:
+              - 1
+              - 4
+        params:
+          url: adslots
+          method: DELETE
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - date: now+5
+        position: 2
+      - date: now+5
+        position: 3
+    params:
+      url: adslots/reserve?uid=asdf-feaea-asdf-fea
+      method: PATCH
+      expected_status: 403
+      expected_error: false
+      expected_output:
+        empty: true
+  - description: Test reserve slot with invalid date and position
+    before:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+    after:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+        params:
+          url: adslots
+          method: DELETE
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - date: now-1
+        position: 2
+      - date: now+7
+        position: 3
+    params:
+      url: adslots/reserve?uid=asdf-feaea-asdf-fea
+      method: PATCH
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: true
+  - description: Test user id not provided
+    before:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+    after:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+        params:
+          url: adslots
+          method: DELETE
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - date: now
+        position: 7
+      - date: now-1
+        position: 3
+    params:
+      url: adslots/reserve
+      method: PATCH
+      expected_status: 400
+      expected_error: false
+      expected_output:
+        empty: true
+  - description: Test reserve slots output by searching api
+    before:
+      - request:
+          - start_date: now
+            end_date: now+2
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+      - request:
+          - date: now
+            position: 2
+          - date: now+1
+            position: 3
+        params:
+          url: adslots/reserve?uid=asdf-feaea-asdf-fea
+          method: PATCH
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request: null
+    query:
+      start_date: now
+      end_date: now+1
+    params:
+      url: adslots
+      method: GET
+      expected_status: 200
+      expected_error: false
+      expected_output:
+        empty: false
+        output:
+          - date: now
+            slots:
+              - position: 1
+                cost: 10.4
+                status: open
+              - position: 2
+                cost: 10.4
+                status: booked
+                booked_by: asdf-feaea-asdf-fea
+                booked_date: now
+              - position: 3
+                cost: 10.4
+                status: open
+              - position: 4
+                cost: 10.4
+                status: open
+          - date: now+1
+            slots:
+              - position: 1
+                cost: 10.4
+                status: open
+              - position: 2
+                cost: 10.4
+                status: open
+              - position: 3
+                cost: 10.4
+                status: booked
+                booked_by: asdf-feaea-asdf-fea
+                booked_date: now
+              - position: 4
+                cost: 10.4
+                status: open
