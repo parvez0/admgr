@@ -26,6 +26,7 @@ build: pre-checks
 		-e MYSQL_ROOT_PASSWORD=${MARIADB_PASSWORD} \
 		-e MARIADB_DATABASE=${MARIADB_DB_NAME} \
 		-p 3306:${MARIADB_PORT} -d ${MARIADB_IMAGE} 2> /dev/null || true
+	sleep 15
 	docker exec -i \
 		${CONTAINER_NAME} \
 		mysql -uroot -p${MARIADB_PASSWORD} \

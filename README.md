@@ -32,7 +32,7 @@ This command installs the Go dependencies, pulls the MariaDB Docker image, and s
 
 To run tests for the SlotManager app, execute the following command:
 ```shell
-make test
+make clean test
 ```
 This command runs the tests and displays the output.
 
