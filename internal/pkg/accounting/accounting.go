@@ -1,10 +1,9 @@
-package core
+package accounting
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kiran-anand14/admgr/internal/pkg/api"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"github.com/kiran-anand14/admgr/internal/pkg/storage/mysql"
 	"github.com/sirupsen/logrus"
@@ -16,7 +15,7 @@ const ContentTypeJSON = "application/json"
 
 type AccountingService interface {
 	Debit(slots []*mysql.Slot, uid, txnid string) error
-	Status(txnids []string) ([]*api.AccountingStatusResponse, error)
+	Status(txnids []string) ([]*AccountingStatusResponse, error)
 }
 
 type accountingService struct {
@@ -26,7 +25,7 @@ type accountingService struct {
 	restClient *http.Client
 }
 
-func (a accountingService) Status(txnids []string) ([]*api.AccountingStatusResponse, error) {
+func (a accountingService) Status(txnids []string) ([]*AccountingStatusResponse, error) {
 
 	reqBody, _ := json.Marshal(txnids)
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/status", a.url), bytes.NewReader(reqBody))
@@ -49,28 +48,28 @@ func (a accountingService) Status(txnids []string) ([]*api.AccountingStatusRespo
 			models.DependentServiceRequestFailed,
 		)
 	}
-	var statusResponse []*api.AccountingStatusResponse
+	var statusResponse []*AccountingStatusResponse
 	json.NewDecoder(res.Body).Decode(&statusResponse)
 	return statusResponse, nil
 }
 
 func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {
-	var metaSlots []api.AccountingMetadataSlot
+	var metaSlots []AccountingMetadataSlot
 	var totalAmount float64
 	for _, s := range slots {
-		metaSlots = append(metaSlots, api.AccountingMetadataSlot{
+		metaSlots = append(metaSlots, AccountingMetadataSlot{
 			Date:     *s.Date,
 			Position: *s.Position,
 			Cost:     *s.Cost,
 		})
 		totalAmount += *s.Cost
 	}
-	accountRequest := api.AccountingRequestBody{
+	accountRequest := AccountingRequestBody{
 		Source: a.source,
 		Uid:    uid,
 		Amount: totalAmount,
 		Txnid:  txnid,
-		Metadata: api.AccountingMetadata{
+		Metadata: AccountingMetadata{
 			Slots: metaSlots,
 		},
 	}
@@ -104,13 +103,38 @@ func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {
 	return nil
 }
 
-func NewAccountingService(host, port, source string, logger *logrus.Logger) AccountingService {
-	return accountingService{
-		url:    fmt.Sprintf("%s:%s", host, port),
-		log:    logger,
+func NewAccountingService(_log *logrus.Logger, conf models.AccountingServiceConf, source string) AccountingService {
+	accService := accountingService{
+		url:    fmt.Sprintf("%s://%s:%s", conf.Scheme, conf.Host, conf.Port),
+		log:    _log,
 		source: source,
 		restClient: &http.Client{
 			Timeout: 2 * time.Minute,
 		},
 	}
+	retries := 0
+	var err *models.Error
+	for {
+		retries++
+		healthCheckUrl := fmt.Sprintf("%s/%s", accService.url, conf.HealthCheckPath)
+		res, err := http.Get(healthCheckUrl)
+		if err == nil && res.StatusCode == http.StatusOK {
+			_log.Infof("AccountingServiceInitialization:: service is active on %s, recieved acknowledgement", healthCheckUrl)
+			break
+		}
+		if err == nil {
+			err = models.NewError(
+				fmt.Sprintf("Request failed on url %s with statusCode: %d", healthCheckUrl, res.StatusCode),
+				models.DependentServiceRequestFailed)
+		}
+		_log.Errorf("AccountingServiceInitialization:: failed to check accounting service status, Error: %s, retrying %d", err, retries)
+		if retries > 10 {
+			break
+		}
+		time.Sleep(10 * time.Second)
+	}
+	if err != nil {
+		_log.Fatalf("AccountingServiceInitialization:: Retries %d done for accounting service, but couldn't established the connection, Error: %s", retries, err)
+	}
+	return accService
 }

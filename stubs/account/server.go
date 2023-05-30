@@ -40,6 +40,10 @@ type AccountingStatusRequest []string
 func main() {
 	router := gin.Default()
 
+	router.GET("/health-check", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
 	router.POST("/debit", func(c *gin.Context) {
 		var requestBody AccountingRequestBody
 
@@ -98,22 +102,3 @@ func main() {
 		panic(err)
 	}
 }
-
-// POST
-// status: reject if not open
-// Error message reformat
-// remove ok response
-// Add required Info or Debug logs
-
-// GET
-// 	define a SQL range query for start and end date
-
-// Patch
-// status = [Close] delete on close -> on db level (tx) -> 1,2,3 update(date, position and status) -> error,4->booked,5
-// don't allow booked
-//
-// Delete ->
-
-// tx.DB.atomic -> transaction
-
-// Req -> Create(Transactions) -> VerifyAndUpdate(Slots.Hold) -> Do -> Update(slots.Done)

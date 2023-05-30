@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/kiran-anand14/admgr/internal/pkg/accounting"
 	"github.com/kiran-anand14/admgr/internal/pkg/api"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"github.com/kiran-anand14/admgr/internal/pkg/storage/mysql"
@@ -31,12 +32,12 @@ type Repository interface {
 
 type service struct {
 	log *logrus.Logger
-	acc AccountingService
+	acc accounting.AccountingService
 	rep Repository
 }
 
 // NewService creates an adding service with the necessary dependencies
-func NewService(r Repository, a AccountingService, log *logrus.Logger) Service {
+func NewService(r Repository, a accounting.AccountingService, log *logrus.Logger) Service {
 	s := service{
 		log: log,
 		rep: r,
