@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/kiran-anand14/admgr/internal/pkg/accounting"
 	"io"
 	"log"
 	"os"
@@ -49,22 +50,16 @@ func main() {
 	addr := fmt.Sprintf("%s:%s", cnf.Host, cnf.Port)
 
 	var service core.Service
-	var accountService core.AccountingService
+	var accountService accounting.AccountingService
 
-	dbConf := models.DBConf{
-		Host:     cnf.DB.Host,
-		Port:     cnf.DB.Port,
-		Name:     cnf.DB.Name,
-		Username: cnf.DB.Username,
-		Password: cnf.DB.Password,
-	}
+	dbConf := models.DBConf(cnf.DB)
 	s, err := mysql.NewStorage(logger, writer, cnf.Logger.Level, &dbConf)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
 		return
 	}
-
-	accountService = core.NewAccountingService(cnf.Accounting.Host, cnf.Accounting.Port, cnf.InstanceId, logger)
+	acntServiceConf := models.AccountingServiceConf(cnf.Accounting)
+	accountService = accounting.NewAccountingService(logger, acntServiceConf, cnf.InstanceId)
 	service = core.NewService(s, accountService, logger)
 
 	r, _ := rest.Handler(logger, service, writer)
