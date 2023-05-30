@@ -658,3 +658,65 @@ reserve:
               - position: 4
                 cost: 10.4
                 status: open
+delete:
+  - description: Test deletion of not existing records
+    request:
+      - start_date: now+1
+        end_date: now+1
+        position:
+          - 1
+          - 2
+        cost: 10.4
+    params:
+      url: adslots
+      method: DELETE
+      expected_status: 404
+      expected_error: false
+      expected_output:
+        empty: false
+        output: null
+  - description: Testing deletion of out of sync records
+    before:
+      - request:
+          - start_date: now+1
+            end_date: now+1
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - start_date: now+1
+        end_date: now+1
+        position:
+          - 1
+          - 2
+        cost: 10.4
+    params:
+      url: adslots
+      method: DELETE
+      expected_status: 403
+      expected_error: false
+      expected_output:
+        empty: false
+        output: null
+    after:
+      - request:
+          - start_date: now+1
+            end_date: now+1
+            position:
+              - 1
+              - 4
+        params:
+          url: adslots
+          method: DELETE
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
