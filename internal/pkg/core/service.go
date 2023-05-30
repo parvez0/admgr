@@ -340,6 +340,19 @@ func (s *service) DeleteSlots(deleteReqBody []*api.DeleteSlotRequestBody) error 
 		if len(slots) == 0 {
 			return models.NewError(
 				fmt.Sprintf("records not found with [start_date: %s, end_date: %s] status open", models.DateToString(startDate), models.DateToString(endDate)),
+				models.DetailedResourceInfoNotFound,
+			)
+		}
+		getOptions.PositionStart = models.Int32ToString(reqBody.Position[1] + 1)
+		getOptions.PositionEnd = models.Int32ToString(reqBody.Position[1] + 1)
+		outOfSequenceSlots, err := s.rep.SearchSlotsInRange(getOptions)
+		if err != nil {
+			return err
+		}
+		if len(outOfSequenceSlots) > 0 {
+			return models.NewError(
+				fmt.Sprintf("attempt to delete out of sequence records not authorized, DeletePosition -> [%d, %d] but Position -> %d exits",
+					reqBody.Position[0], reqBody.Position[1], reqBody.Position[1]+1),
 				models.ActionForbidden,
 			)
 		}
