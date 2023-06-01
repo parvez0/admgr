@@ -162,7 +162,7 @@ func reserveSlotHandler(c *gin.Context) {
 		c.AbortWithStatusJSON(httpCode, gin.H{"error": erMsg})
 		return
 	}
-	c.JSON(http.StatusOK, "ok")
+	c.Status(http.StatusOK)
 }
 
 func getHttpCodeAndMessage(err error) (int, string) {

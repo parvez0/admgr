@@ -170,6 +170,9 @@ func (s *Storage) SearchSlotsInRange(options *GetOptions) ([]*Slot, error) {
 	if options.Uid != "" {
 		query = query.Where("booked_by = ?", options.Uid)
 	}
+	if options.Query != "" {
+		query = query.Where(options.Query)
+	}
 	res := query.Find(&slots)
 	if res.Error != nil {
 		s.logger.Errorf("SearchSlotsInRange::[%+v]", options)

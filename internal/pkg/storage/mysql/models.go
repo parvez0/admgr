@@ -102,5 +102,6 @@ type GetOptions struct {
 	PositionEnd        string
 	Status             string
 	Uid                string
+	Query              string
 	PreloadTransaction bool
 }
