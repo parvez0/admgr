@@ -422,20 +422,6 @@ reserve:
           expected_error: false
           expected_output:
             empty: true
-    after:
-      - request:
-          - start_date: now+5
-            end_date: now+5
-            position:
-              - 1
-              - 4
-        params:
-          url: adslots
-          method: DELETE
-          expected_status: 200
-          expected_error: false
-          expected_output:
-            empty: true
     request:
       - date: now+5
         position: 2
@@ -472,20 +458,6 @@ reserve:
         params:
           url: adslots/reserve?uid=asdf-feaea-asdf-fea
           method: PATCH
-          expected_status: 200
-          expected_error: false
-          expected_output:
-            empty: true
-    after:
-      - request:
-          - start_date: now+5
-            end_date: now+5
-            position:
-              - 1
-              - 4
-        params:
-          url: adslots
-          method: DELETE
           expected_status: 200
           expected_error: false
           expected_output:
@@ -697,7 +669,6 @@ delete:
         position:
           - 1
           - 2
-        cost: 10.4
     params:
       url: adslots
       method: DELETE
@@ -720,3 +691,44 @@ delete:
           expected_error: false
           expected_output:
             empty: true
+  - description: Test delete already booked or on hold slots
+    before:
+      - request:
+          - start_date: now+5
+            end_date: now+5
+            position:
+              - 1
+              - 4
+            cost: 10.4
+        params:
+          url: adslots
+          method: POST
+          expected_status: 201
+          expected_error: false
+          expected_output:
+            empty: true
+      - request:
+          - date: now+5
+            position: 2
+          - date: now+5
+            position: 3
+        params:
+          url: adslots/reserve?uid=asdf-feaea-asdf-fea
+          method: PATCH
+          expected_status: 200
+          expected_error: false
+          expected_output:
+            empty: true
+    request:
+      - start_date: now+5
+        end_date: now+5
+        position:
+          - 1
+          - 4
+    params:
+      url: adslots
+      method: DELETE
+      expected_status: 403
+      expected_error: false
+      expected_output:
+        empty: true

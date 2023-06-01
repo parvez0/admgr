@@ -277,6 +277,7 @@ type TestTemplateObject struct {
 	Create  []Create  `yaml:"create" json:"create"`
 	Update  []Create  `yaml:"update" json:"update"`
 	Reserve []Reserve `yaml:"reserve" json:"reserve"`
+	Delete  []Delete  `yaml:"delete" json:"delete"`
 }
 
 type Create struct {
@@ -300,6 +301,15 @@ type Reserve struct {
 	Before             []*ReserveBefore   `yaml:"before,omitempty" json:"before"`
 	After              []*After           `yaml:"after,omitempty" json:"after"`
 	Request            []ReserveRequest   `yaml:"request" json:"request"`
+	Query              *Query             `yaml:"query" json:"query"`
+	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
+}
+
+type Delete struct {
+	Description        string             `yaml:"description" json:"description"`
+	Before             []*ReserveBefore   `yaml:"before,omitempty" json:"before"`
+	After              []*After           `yaml:"after,omitempty" json:"after"`
+	Request            []CreateRequest    `yaml:"request" json:"request"`
 	Query              *Query             `yaml:"query" json:"query"`
 	TestRequiredParams TestRequiredParams `yaml:"params" json:"params"`
 }

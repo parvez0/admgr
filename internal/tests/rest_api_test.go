@@ -27,10 +27,8 @@ import (
 )
 
 const (
-	UrlHealthCheck    = "health-check"
-	UrlAdslotsRequest = "adslots"
-	UrlReserveRequest = "adslots/reserve"
-	ContentTypeJson   = "application/json"
+	UrlHealthCheck  = "health-check"
+	ContentTypeJson = "application/json"
 )
 
 type Address struct {
@@ -223,6 +221,36 @@ func (r *HttRestTestSuite) TestSearchSlot() {
 
 func (r *HttRestTestSuite) TestReserveSlot() {
 	for _, test := range r.template.Reserve {
+		r.T().Run(test.Description, func(t *testing.T) {
+			// Perform any necessary setup
+			for _, beforeTest := range test.Before {
+				req := createRequest(join(r.url, beforeTest.TestRequiredParams.Url), beforeTest.TestRequiredParams.Method, beforeTest.Request, nil, true)
+				res, err := r.client.Do(req)
+				assertError(t, err, beforeTest.TestRequiredParams)
+				checkResponse(t, res, beforeTest.TestRequiredParams)
+			}
+
+			// Send the test request
+			req := createRequest(join(r.url, test.TestRequiredParams.Url), test.TestRequiredParams.Method, test.Request, test.Query, false)
+			res, err := r.client.Do(req)
+			assertError(t, err, test.TestRequiredParams)
+			checkResponse(t, res, test.TestRequiredParams)
+
+			// Perform any necessary cleanup
+			for _, afterTest := range test.After {
+				req := createRequest(join(r.url, afterTest.TestRequiredParams.Url), afterTest.TestRequiredParams.Method, afterTest.Request, nil, false)
+				res, err := r.client.Do(req)
+				assertError(t, err, afterTest.TestRequiredParams)
+				checkResponse(t, res, afterTest.TestRequiredParams)
+			}
+			r.repository.DropAll()
+			r.repository.Initialize()
+		})
+	}
+}
+
+func (r *HttRestTestSuite) TestDeleteSlot() {
+	for _, test := range r.template.Delete {
 		r.T().Run(test.Description, func(t *testing.T) {
 			// Perform any necessary setup
 			for _, beforeTest := range test.Before {
