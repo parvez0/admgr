@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kiran-anand14/admgr/internal/pkg/accounting"
 	"github.com/kiran-anand14/admgr/internal/pkg/core"
 	"github.com/kiran-anand14/admgr/internal/pkg/http/rest"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
@@ -53,7 +54,6 @@ type HttRestTestSuite struct {
 
 func (r *HttRestTestSuite) BeforeTest(suiteName, test string) {
 	writer := io.MultiWriter(os.Stdout)
-	account := Address{"http://localhost", "10002"}
 	admgr := Address{"localhost", "10001"}
 	logger := &logrus.Logger{}
 	dbConf := models.DBConf{
@@ -68,8 +68,13 @@ func (r *HttRestTestSuite) BeforeTest(suiteName, test string) {
 		logger.Errorf("%s", err.Error())
 		return
 	}
-
-	accountService := core.NewAccountingService(account.Host, account.Port, "admgr", logger)
+	accntServiceConf := models.AccountingServiceConf{
+		Scheme:          "http",
+		Host:            "localhost",
+		Port:            "10002",
+		HealthCheckPath: "health-check",
+	}
+	accountService := accounting.NewAccountingService(logger, accntServiceConf, "admgr")
 	service := core.NewService(s, accountService, logger)
 
 	router, _ := rest.Handler(logger, service, os.Stdout)

@@ -54,8 +54,10 @@ type DBConf struct {
 }
 
 type AccountingServiceConf struct {
-	Host string `json:"host" mapstructure:"host"`
-	Port string `json:"port" mapstructure:"port"`
+	Scheme          string `json:"scheme" mapstructure:"scheme"`
+	Host            string `json:"host" mapstructure:"host"`
+	Port            string `json:"port" mapstructure:"port"`
+	HealthCheckPath string `json:"health_check_path" mapstructure:"health_check_path"`
 }
 
 type AsyncommLoggerCnf struct {
