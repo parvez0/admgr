@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"gorm.io/gorm"
 	"time"
@@ -58,7 +59,6 @@ func (t *Transaction) TableName() string {
 }
 
 func (t *Transaction) AfterCreate(tx *gorm.DB) (err error) {
-	var slot Slot
 	if t.Date == nil {
 		return models.NewError("column 'date' cannot be empty", models.ActionForbidden)
 	}
@@ -68,16 +68,14 @@ func (t *Transaction) AfterCreate(tx *gorm.DB) (err error) {
 		t.Position,
 		models.SlotStatusOpen).
 		Update("status", models.SlotStatusHold).Error; err != nil {
-		return err
+		return models.NewError(
+			fmt.Sprintf("Slot not found [Date: %s, Position: %d]", t.Date.Format(time.DateOnly), *t.Position),
+			models.ActionForbidden)
 	}
-	// Set foreign key
-	t.Date = slot.Date
-	t.Position = slot.Position
 	return nil
 }
 
 func (t *Transaction) AfterDelete(tx *gorm.DB) (err error) {
-	var slot Slot
 	if t.Date == nil {
 		return models.NewError("column 'date' cannot be empty", models.ActionForbidden)
 	}
@@ -89,9 +87,6 @@ func (t *Transaction) AfterDelete(tx *gorm.DB) (err error) {
 		Update("status", models.SlotStatusOpen).Error; err != nil {
 		return err
 	}
-	// Set foreign key
-	t.Date = slot.Date
-	t.Position = slot.Position
 	return nil
 }
 

@@ -97,7 +97,7 @@ func (a accountingService) Debit(slots []*mysql.Slot, uid, txnid string) error {
 		a.log.Errorf("DebitTransactionFailed::[StatusCode: %d, Error: %v]", statusCode, err)
 		return models.NewError(
 			"Debit transaction failed",
-			models.DependentServiceRequestFailed,
+			models.InternalProcessingError,
 		)
 	}
 	return nil
