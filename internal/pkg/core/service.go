@@ -48,7 +48,7 @@ func NewService(r Repository, a accounting.AccountingService, log *logrus.Logger
 		if err := s.revertFailedReservations(); err != nil {
 			s.log.Errorf("CoreServiceInitialization: Failed to revert reservations [Error: %s, Retrying: %d]", err, retry)
 			if retry > 10 {
-				panic("ReachedMaximumRetires: Failed CoreServiceInitialization")
+				s.log.Fatal("ReachedMaximumRetires: Failed CoreServiceInitialization")
 			}
 			time.Sleep(time.Second * 10)
 			retry++
