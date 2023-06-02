@@ -330,15 +330,26 @@ func (s *service) DeleteSlots(deleteReqBody []*api.DeleteSlotRequestBody) error 
 			EndDate:            endDate,
 			PositionStart:      models.Int32ToString(reqBody.Position[0]),
 			PositionEnd:        models.Int32ToString(reqBody.Position[1]),
-			Status:             models.SlotStatusOpen,
-			Uid:                "",
 			PreloadTransaction: true,
 		}
-		slots, err := s.rep.SearchSlotsInRange(getOptions)
+		getOptions.Query = fmt.Sprintf("status = '%s' OR status = '%s'", models.SlotStatusBooked, models.SlotStatusHold)
+		bookedSlots, err := s.rep.SearchSlotsInRange(getOptions)
 		if err != nil {
 			return err
 		}
-		if len(slots) == 0 {
+		if len(bookedSlots) > 0 {
+			return models.NewError(
+				fmt.Sprintf("Attempting to delete booked or on-hold slots [start_date: %s, end_date: %s]", models.DateToString(startDate), models.DateToString(endDate)),
+				models.ActionForbidden,
+			)
+		}
+		getOptions.Status = models.SlotStatusOpen
+		getOptions.Query = ""
+		openSlots, err := s.rep.SearchSlotsInRange(getOptions)
+		if err != nil {
+			return err
+		}
+		if len(openSlots) == 0 {
 			return models.NewError(
 				fmt.Sprintf("records not found with [start_date: %s, end_date: %s] status open", models.DateToString(startDate), models.DateToString(endDate)),
 				models.DetailedResourceInfoNotFound,
@@ -357,8 +368,8 @@ func (s *service) DeleteSlots(deleteReqBody []*api.DeleteSlotRequestBody) error 
 				models.ActionForbidden,
 			)
 		}
-		s.log.Debugf("Deleting %d records: %+v", len(slots), slots)
-		_, err = s.rep.Delete(slots)
+		s.log.Debugf("Deleting %d records: %+v", len(openSlots), openSlots)
+		_, err = s.rep.Delete(openSlots)
 		if err != nil {
 			return err
 		}
