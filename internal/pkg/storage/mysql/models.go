@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/kiran-anand14/admgr/internal/pkg/models"
 	"gorm.io/gorm"
 	"time"
@@ -47,7 +48,7 @@ func (s *Slot) ToString() string {
 
 // Transaction represents a transaction in the ad manager system.
 type Transaction struct {
-	Txnid    string     `gorm:"type:varchar(36)" json:"txnid"`
+	Txnid    string     `gorm:"type:varchar(36);unique" json:"txnid"`
 	Created  time.Time  `gorm:"default:CURRENT_TIMESTAMP" json:"created"`
 	Date     *time.Time `gorm:"primaryKey;type:date;not null" json:"date"`
 	Position *int32     `gorm:"primaryKey;type:int;not null" json:"position"`
@@ -56,6 +57,11 @@ type Transaction struct {
 // TableName Define foreign key relationship
 func (t *Transaction) TableName() string {
 	return "transactions"
+}
+
+func (t *Transaction) BeforeCreate(tx *gorm.DB) error {
+	t.Txnid = uuid.New().String()
+	return nil
 }
 
 func (t *Transaction) AfterCreate(tx *gorm.DB) (err error) {

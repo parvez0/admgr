@@ -132,6 +132,16 @@ func (s *Storage) UpdateSlots(slots []*Slot) (int, error) {
 	var dbError error
 	tx, affectedRows := s.db.Begin(), 0
 	for _, slot := range slots {
+		if slot.Status != nil && *slot.Status == models.SlotStatusOpen {
+			if err := tx.Delete(&Transaction{Date: slot.Date, Position: slot.Position}).Error; err != nil {
+				s.logger.Errorf("RevertingTransationFailed:: [Error: %s, Slot: %+v]", err.Error(), slot.Transaction)
+				dbError = models.NewError(
+					fmt.Sprint("PatchFailed:: Internal server error"),
+					models.InternalProcessingError,
+				)
+				break
+			}
+		}
 		res := tx.Model(&Slot{}).
 			Clauses(clause.Locking{Strength: "UPDATE"}).
 			Where("date = ? and position = ?", slot.Date.Format(time.DateOnly), slot.Position).
@@ -213,7 +223,7 @@ func (s *Storage) UpdateSlotsStatus(slots []*Slot, lastStatus, newStatus string)
 					models.ActionForbidden,
 				)
 			}
-			resSlot.Status = &newStatus
+			resSlot.Status = models.PtrString(newStatus)
 			if err := s.db.Save(&resSlot).Error; err != nil {
 				s.logger.Errorf("SlotUpdateFailed:: [Error: %s, Slot: %+v]", err.Error(), resSlot)
 				return models.NewError(

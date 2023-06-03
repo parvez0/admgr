@@ -70,7 +70,7 @@ func main() {
 		fmt.Println(requestBody)
 		// Do something with the request data...
 		rand.New(rand.NewSource(time.Now().UnixNano()))
-		status := []int{http.StatusOK, http.StatusNotFound}
+		status := []int{http.StatusNotFound}
 		var res []*AccountingStatusResponse
 		for _, req := range requestBody {
 			// Return "ok" response
