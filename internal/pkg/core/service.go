@@ -48,7 +48,7 @@ func NewService(r Repository, a accounting.AccountingService, log *logrus.Logger
 		if err := s.revertFailedReservations(); err != nil {
 			s.log.Errorf("CoreServiceInitialization: Failed to revert reservations [Error: %s, Retrying: %d]", err, retry)
 			if retry > 10 {
-				panic("ReachedMaximumRetires: Failed CoreServiceInitialization")
+				s.log.Fatal("ReachedMaximumRetires: Failed CoreServiceInitialization")
 			}
 			time.Sleep(time.Second * 10)
 			retry++
@@ -70,49 +70,57 @@ func (s *service) revertFailedReservations() error {
 		return err
 	}
 	s.log.Infof("Total %d slots found to be on hold status", len(slots))
-	var (
-		slotsToUpdate []*mysql.Slot
-		txnIds        []string
-		slotMap       = make(map[string]*mysql.Slot)
-	)
+
+	var slotsToUpdate []*mysql.Slot
+	var txnIds []string
+	slotMap := make(map[string]*mysql.Slot)
+
 	for _, slot := range slots {
 		if slot.Transaction == nil {
 			s.log.Warnf("Transaction not found for [Slot: %s, Status: %v], Reverting status to '%s'", slotIdFromSlot([]*mysql.Slot{slot}), slot.Status, models.SlotStatusOpen)
 			slot.Status = models.PtrString(models.SlotStatusOpen)
 			slotsToUpdate = append(slotsToUpdate, slot)
-			continue
+		} else {
+			txnIds = append(txnIds, slot.Transaction.Txnid)
+			slotMap[slot.Transaction.Txnid] = slot
 		}
-		txnIds = append(txnIds, slot.Transaction.Txnid)
-		slotMap[slot.Transaction.Txnid] = slot
 	}
+
 	resp, err := s.acc.Status(txnIds)
 	if err != nil {
-		s.log.Errorf("Error while communicating with accounting service: %s", err.Error())
+		s.log.Errorf("Error while communicating with the accounting service: %s", err.Error())
 		return err
 	}
+
 	for _, txn := range resp {
 		slot, ok := slotMap[txn.Txnid]
 		if !ok {
-			s.log.Errorf("Id not found in slot map: %s", txn.Txnid)
+			s.log.Errorf("ID not found in slot map: %s", txn.Txnid)
 			continue
 		}
+
 		slot.BookedDate = models.PtrDate(txn.Created)
 		slot.BookedBy = models.PtrString(txn.UID)
 		slot.Status = models.PtrString(models.SlotStatusBooked)
-		slotsToUpdate = append(slotsToUpdate, slot)
 		delete(slotMap, txn.Txnid)
+
+		slotsToUpdate = append(slotsToUpdate, slot)
 	}
+
 	for _, slot := range slotMap {
 		slot.Status = models.PtrString(models.SlotStatusOpen)
 		slotsToUpdate = append(slotsToUpdate, slot)
 	}
-	s.log.Infof("Transaction was successful. Changing status to booked for %s", slotIdFromSlot(slotsToUpdate))
+
+	s.log.Infof("Fetched transaction status successfully. Changing status to booked for %s", slotIdFromSlot(slotsToUpdate))
+
 	updateCount, err := s.rep.UpdateSlots(slotsToUpdate)
 	if err != nil {
 		s.log.Errorf("Reverting changes failed [Error: %s]", err.Error())
 		return err
 	}
-	s.log.Infof("Total %d slots status updated", updateCount)
+
+	s.log.Infof("Total %d slot(s) status updated", updateCount)
 	return nil
 }
 
