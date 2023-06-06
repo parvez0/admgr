@@ -70,7 +70,9 @@ func (s *service) revertFailedReservations() error {
 		return err
 	}
 	s.log.Infof("Total %d slots found to be on hold status", len(slots))
-
+	if len(slots) == 0 {
+		return nil
+	}
 	var slotsToUpdate []*mysql.Slot
 	var txnIds []string
 	slotMap := make(map[string]*mysql.Slot)
